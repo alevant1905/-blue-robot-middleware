@@ -155,11 +155,11 @@ class ImprovedToolSelector:
     PRIORITY_LOW = 4       # Broader intent (search, documents)
     PRIORITY_FALLBACK = 5  # Last resort
 
-    # Confidence thresholds
-    CONFIDENCE_HIGH = 0.85
-    CONFIDENCE_MEDIUM = 0.65
-    CONFIDENCE_LOW = 0.45
-    CONFIDENCE_MINIMUM = 0.30  # Below this, don't suggest tool
+    # Confidence thresholds - RAISED to reduce false positives
+    CONFIDENCE_HIGH = 0.90
+    CONFIDENCE_MEDIUM = 0.75
+    CONFIDENCE_LOW = 0.55
+    CONFIDENCE_MINIMUM = 0.50  # Below this, don't suggest tool (raised from 0.30)
 
     def __init__(self):
         self.tool_usage_history = Counter()  # Track which tools are used frequently
@@ -1051,20 +1051,30 @@ class ImprovedToolSelector:
         has_genre = any(genre in msg_lower for genre in genres)
 
         # v7 ENHANCEMENT: Fuzzy match for artist names (handles typos)
+        # BUT: Only do fuzzy matching if we have clear music context (play signal present)
         matched_artist = None
-        if not has_artist:
-            # Try fuzzy matching on individual words
-            words = msg_lower.split()
+        if not has_artist and any(signal in msg_lower for signal in play_signals):
+            # Try fuzzy matching on individual words AFTER removing play signals
+            # This prevents "play" matching with "Coldplay"
+            msg_without_signals = msg_lower
+            for signal in play_signals:
+                msg_without_signals = msg_without_signals.replace(signal, ' ')
+
+            words = msg_without_signals.split()
+            words = [w for w in words if len(w) > 2]  # Skip short words
+
             for i in range(len(words)):
                 # Try single words and pairs
                 for length in [1, 2, 3]:
                     if i + length <= len(words):
                         phrase = ' '.join(words[i:i+length])
-                        match = fuzzy_match(phrase, artists, threshold=0.8)
-                        if match:
-                            matched_artist = match
-                            has_artist = True
-                            break
+                        # Stricter threshold and minimum length
+                        if len(phrase) >= 4:  # At least 4 characters
+                            match = fuzzy_match(phrase, artists, threshold=0.85)  # Raised from 0.8
+                            if match:
+                                matched_artist = match
+                                has_artist = True
+                                break
                 if has_artist:
                     break
 
@@ -1084,18 +1094,34 @@ class ImprovedToolSelector:
         elif has_play and has_music:
             # Check if it's about searching for info vs playing
             info_words = ['about', 'information', 'who is', 'what is', 'search for', 'tell me about', 'wiki']
+            # Also check for non-music play context (games, videos, etc.)
+            non_music_play = ['game', 'video', 'role', 'part', 'character', 'sport', 'match', 'quiz']
+
             if any(word in msg_lower for word in info_words):
-                play_confidence = 0.3
+                play_confidence = 0.2  # Lowered from 0.3
                 play_reason.append("play+music but info request detected")
+            elif any(word in msg_lower for word in non_music_play):
+                play_confidence = 0.25  # NEW: Detect non-music play context
+                play_reason.append("play detected but non-music context (game/video/etc)")
             else:
                 play_confidence = 0.95
                 play_reason.append("clear play + music intent")
         elif has_play and context.get('has_music_in_history'):
-            play_confidence = 0.75
-            play_reason.append("play verb with music context")
+            # Only trigger if recent music context (within 3 messages)
+            if context.get('music_recency', 0) >= 3:
+                play_confidence = 0.50  # Lowered from 0.75 and requires stricter check
+                play_reason.append("play verb with RECENT music context")
+            else:
+                play_confidence = 0.30  # Too old context, likely false positive
+                play_reason.append("play verb but music context too old")
         elif has_music and any(word in msg_lower for word in ['play', 'start', 'queue']):
-            play_confidence = 0.65
-            play_reason.append("music noun with play indicators")
+            # Check if it's really about music or just coincidental word overlap
+            if context.get('has_music_in_history') or any(g in msg_lower for g in genres[:20]):  # Check for actual music context
+                play_confidence = 0.60  # Slightly lowered from 0.65
+                play_reason.append("music noun with play indicators + context")
+            else:
+                play_confidence = 0.35  # Too low to trigger (below minimum threshold)
+                play_reason.append("music noun + play but no context")
         # "put on some [genre]" or "put on [artist]"
         elif 'put on' in msg_lower and (has_artist or has_genre or has_music):
             play_confidence = 0.92
@@ -1488,7 +1514,7 @@ class ImprovedToolSelector:
 
         light_signals = {
             'nouns': ['light', 'lights', 'lamp', 'lamps', 'bulb', 'bulbs', 'hue'],
-            'actions': ['turn on', 'turn off', 'switch on', 'switch off', 'set', 'change', 'dim', 'brighten', 'adjust'],
+            'actions': ['turn on', 'turn off', 'switch on', 'switch off', 'set', 'change', 'dim', 'brighten', 'adjust', 'on', 'off'],
             'colors': [
                 'red', 'blue', 'green', 'yellow', 'purple', 'orange', 'white', 'pink',
                 'cyan', 'magenta', 'lime', 'teal', 'amber', 'violet', 'turquoise',
@@ -1512,6 +1538,16 @@ class ImprovedToolSelector:
         confidence = 0.0
         reason = []
 
+        # Check for common "light as adjective" phrases (NOT about lighting)
+        light_adjective_phrases = [
+            'light snack', 'light meal', 'light reading', 'light exercise',
+            'light work', 'light duty', 'light touch', 'light breeze',
+            'light rain', 'light traffic', 'light weight', 'light load'
+        ]
+        if any(phrase in msg_lower for phrase in light_adjective_phrases):
+            # "light" is being used as an adjective, not about lights
+            return intents
+
         # Check for visualizer conflicts - "light show" should go to visualizer
         visualizer_phrases = ['light show', 'lights dance', 'sync lights', 'disco mode', 'party lights']
         if any(phrase in msg_lower for phrase in visualizer_phrases):
@@ -1522,18 +1558,33 @@ class ImprovedToolSelector:
             confidence = 0.95
             reason.append("light + action/color/mood")
         elif has_mood and not has_light:
-            # Mood words alone suggest lights (e.g., "set it to sunset")
-            # But check for music context
-            if not context.get('has_music_in_history') and 'play' not in msg_lower:
-                confidence = 0.85
-                reason.append("mood keyword (implies lights)")
+            # Mood words alone are WEAK signals - many mood words are ambiguous (party, chill, focus, etc.)
+            # Only trigger if there's a clear "set" context AND explicit light indicator nearby
+            set_context = any(w in msg_lower for w in ['set', 'change', 'make', 'switch to', 'turn to'])
+            explicit_light_ref = any(w in msg_lower for w in ['it', 'them', 'the lights', 'the light', 'lighting', 'brightness'])
+
+            if set_context and explicit_light_ref and not context.get('has_music_in_history') and 'play' not in msg_lower:
+                confidence = 0.70  # Lowered from 0.85 - still uncertain
+                reason.append("mood keyword with set context + light reference")
+            else:
+                confidence = 0.40  # Too low to trigger - mood words are too ambiguous
+                reason.append("mood keyword but no clear light context")
         elif has_color and ('set' in msg_lower or 'change' in msg_lower or 'make' in msg_lower):
-            confidence = 0.88
-            reason.append("color + set/change")
+            # Color alone is also ambiguous - could be clothing, design, etc.
+            if has_light or context.get('has_lights_in_history') or 'light' in msg_lower:
+                confidence = 0.88
+                reason.append("color + set/change + light context")
+            else:
+                confidence = 0.45  # Too ambiguous without light context
+                reason.append("color + set/change but no light context")
         elif has_light:
-            confidence = 0.70
-            reason.append("light noun mentioned")
-            reason.append("light noun only")
+            # Just mentioning "light" is weak - could be "light snack", "light reading", etc.
+            if has_action or context.get('has_lights_in_history'):
+                confidence = 0.65  # Lowered from 0.70
+                reason.append("light noun mentioned with action/context")
+            else:
+                confidence = 0.40  # Too low to trigger
+                reason.append("light noun only - ambiguous")
 
         # Exclude visualizer intent
         if 'visualizer' in msg_lower or 'light show' in msg_lower:
