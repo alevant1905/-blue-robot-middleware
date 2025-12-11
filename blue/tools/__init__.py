@@ -140,6 +140,29 @@ from .gmail_enhanced import (
     PREDEFINED_TEMPLATES,
 )
 
+# Gmail AI tools
+from .gmail_ai import (
+    EmailPriority,
+    EmailSentiment,
+    EmailAnalysis,
+    GmailAIManager,
+    get_gmail_ai_manager,
+    analyze_inbox_cmd,
+    suggest_reply_cmd,
+)
+
+# Gmail Bulk operations
+from .gmail_bulk import (
+    GmailBulkManager,
+    AttachmentManager,
+    get_bulk_manager,
+    get_attachment_manager,
+    bulk_archive_cmd,
+    smart_cleanup_cmd,
+    find_large_emails_cmd,
+    unsubscribe_cmd,
+)
+
 # Utility tools
 from .utilities import (
     get_current_time,
@@ -312,6 +335,41 @@ from .habits import (
     execute_habit_command,
 )
 
+# Social Media Management
+from .social_media import (
+    SocialMediaManager,
+    SocialPost,
+    ContentIdea,
+    PlatformAccount,
+    Platform,
+    PostStatus,
+    ContentType,
+    ApprovalStatus,
+    get_social_media_manager,
+    draft_post_cmd,
+    approve_post_cmd,
+    list_posts_cmd,
+    get_scheduled_posts_cmd,
+    add_content_idea_cmd,
+    get_content_ideas_cmd,
+    get_engagement_stats_cmd,
+    suggest_hashtags_cmd,
+    connect_account_cmd,
+)
+
+# Facebook integration
+from .facebook_integration import (
+    FacebookOAuthManager,
+    FacebookAPIClient,
+    FacebookIntegration,
+    get_facebook_integration,
+    setup_facebook_app_cmd,
+    connect_facebook_cmd,
+    complete_facebook_auth_cmd,
+    publish_to_facebook_cmd,
+    sync_facebook_engagement_cmd,
+)
+
 
 __all__ = [
     # Music
@@ -417,6 +475,25 @@ __all__ = [
     'list_scheduled_emails_cmd',
     'execute_gmail_enhanced_command',
     'PREDEFINED_TEMPLATES',
+
+    # Gmail AI
+    'EmailPriority',
+    'EmailSentiment',
+    'EmailAnalysis',
+    'GmailAIManager',
+    'get_gmail_ai_manager',
+    'analyze_inbox_cmd',
+    'suggest_reply_cmd',
+
+    # Gmail Bulk
+    'GmailBulkManager',
+    'AttachmentManager',
+    'get_bulk_manager',
+    'get_attachment_manager',
+    'bulk_archive_cmd',
+    'smart_cleanup_cmd',
+    'find_large_emails_cmd',
+    'unsubscribe_cmd',
 
     # Utilities
     'get_current_time',
@@ -567,4 +644,35 @@ __all__ = [
     'complete_habit_cmd',
     'habit_stats_cmd',
     'execute_habit_command',
+
+    # Social Media
+    'SocialMediaManager',
+    'SocialPost',
+    'ContentIdea',
+    'PlatformAccount',
+    'Platform',
+    'PostStatus',
+    'ContentType',
+    'ApprovalStatus',
+    'get_social_media_manager',
+    'draft_post_cmd',
+    'approve_post_cmd',
+    'list_posts_cmd',
+    'get_scheduled_posts_cmd',
+    'add_content_idea_cmd',
+    'get_content_ideas_cmd',
+    'get_engagement_stats_cmd',
+    'suggest_hashtags_cmd',
+    'connect_account_cmd',
+
+    # Facebook
+    'FacebookOAuthManager',
+    'FacebookAPIClient',
+    'FacebookIntegration',
+    'get_facebook_integration',
+    'setup_facebook_app_cmd',
+    'connect_facebook_cmd',
+    'complete_facebook_auth_cmd',
+    'publish_to_facebook_cmd',
+    'sync_facebook_engagement_cmd',
 ]
