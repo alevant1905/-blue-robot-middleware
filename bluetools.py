@@ -10412,10 +10412,96 @@ def api_documents_upload():
 
 
 @app.route("/documents/file/<path:filename>")
-
-
 def serve_document_file(filename):
     return send_from_directory(DOCUMENTS_FOLDER, filename, as_attachment=False)
+
+
+# ===== Facebook OAuth Callback =====
+@app.route("/facebook/callback")
+def facebook_callback():
+    """Handle Facebook OAuth callback"""
+    code = request.args.get('code')
+    error = request.args.get('error')
+
+    if error:
+        return f"""
+        <html>
+        <head><title>Facebook Authentication Failed</title></head>
+        <body style="font-family: Arial, sans-serif; padding: 40px;">
+            <h1 style="color: #e74c3c;">Authentication Failed</h1>
+            <p>Error: {error}</p>
+            <p>Description: {request.args.get('error_description', 'Unknown error')}</p>
+            <p><a href="/">Return to Home</a></p>
+        </body>
+        </html>
+        """
+
+    if not code:
+        return """
+        <html>
+        <head><title>Facebook Authentication</title></head>
+        <body style="font-family: Arial, sans-serif; padding: 40px;">
+            <h1 style="color: #f39c12;">Missing Authorization Code</h1>
+            <p>No authorization code received from Facebook.</p>
+            <p><a href="/">Return to Home</a></p>
+        </body>
+        </html>
+        """
+
+    try:
+        from blue.tools import get_facebook_integration
+        integration = get_facebook_integration()
+        result = integration.complete_authentication(code)
+
+        if result.get('status') == 'success':
+            user_info = result.get('user', {})
+            pages = result.get('pages', [])
+
+            pages_html = ""
+            if pages:
+                pages_html = "<h3>Connected Pages:</h3><ul>"
+                for page in pages:
+                    pages_html += f"<li>{page.get('name')} (ID: {page.get('id')})</li>"
+                pages_html += "</ul>"
+
+            return f"""
+            <html>
+            <head><title>Facebook Connected</title></head>
+            <body style="font-family: Arial, sans-serif; padding: 40px;">
+                <h1 style="color: #27ae60;">✓ Successfully Connected to Facebook</h1>
+                <p>Authenticated as: <strong>{user_info.get('name')}</strong></p>
+                <p>Email: {user_info.get('email')}</p>
+                {pages_html}
+                <p style="margin-top: 20px;">You can now use Blue to post to Facebook!</p>
+                <p><a href="/">Return to Home</a></p>
+            </body>
+            </html>
+            """
+        else:
+            error_msg = result.get('error', 'Unknown error')
+            return f"""
+            <html>
+            <head><title>Authentication Error</title></head>
+            <body style="font-family: Arial, sans-serif; padding: 40px;">
+                <h1 style="color: #e74c3c;">Authentication Error</h1>
+                <p>Error: {error_msg}</p>
+                <p><a href="/">Return to Home</a></p>
+            </body>
+            </html>
+            """
+
+    except Exception as e:
+        return f"""
+        <html>
+        <head><title>Error</title></head>
+        <body style="font-family: Arial, sans-serif; padding: 40px;">
+            <h1 style="color: #e74c3c;">Unexpected Error</h1>
+            <p>Error: {str(e)}</p>
+            <p><a href="/">Return to Home</a></p>
+        </body>
+        </html>
+        """
+
 
 app.run(host='127.0.0.1', port=PROXY_PORT, debug=False)
 
