@@ -10,7 +10,7 @@ Usage:
     from blue.llm import call_llm, LMStudioClient
 """
 
-__version__ = "9.0.0"
+__version__ = "11.1.0"  # Enhanced tool selector v2.0
 
 # Re-export commonly used items for convenience
 from .utils import (
@@ -56,6 +56,20 @@ from .tool_selector import (
     fuzzy_match as tool_fuzzy_match, normalize_artist_name as tool_normalize_artist,
 )
 
+# Enhanced Tool Selector v2.0 with semantic understanding
+try:
+    from .tool_selector_enhanced import (
+        # Data classes
+        ToolProfile, ParsedIntent, ToolMatch, SelectionResult,
+        # Selector
+        EnhancedToolSelector, integrate_enhanced_selector,
+        # Profile data
+        TOOL_PROFILES,
+    )
+    ENHANCED_SELECTOR_AVAILABLE = True
+except ImportError:
+    ENHANCED_SELECTOR_AVAILABLE = False
+
 __all__ = [
     # Version
     '__version__',
@@ -75,8 +89,13 @@ __all__ = [
     'LMStudioClient', 'get_lm_client', 'call_llm',
     'Settings', 'settings',
     'LM_STUDIO_URL', 'LM_STUDIO_MODEL', 'LM_STUDIO_RAG_URL',
-    # Tool Selector
+    # Tool Selector v1.0
     'ToolIntent', 'ToolSelectionResult',
     'ImprovedToolSelector', 'integrate_with_existing_system',
     'tool_fuzzy_match', 'tool_normalize_artist',
+    # Enhanced Tool Selector v2.0
+    'ENHANCED_SELECTOR_AVAILABLE',
+    'ToolProfile', 'ParsedIntent', 'ToolMatch', 'SelectionResult',
+    'EnhancedToolSelector', 'integrate_enhanced_selector',
+    'TOOL_PROFILES',
 ]
