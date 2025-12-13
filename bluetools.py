@@ -3112,14 +3112,41 @@ if __name__ == "__main__":
 # END OF IMPROVED TOOL SELECTION SYSTEM
 # ================================================================================
 
-# Initialize the improved tool selector globally
+# ================================================================================
+# ENHANCED TOOL SELECTOR v2.0 - Semantic Understanding
+# ================================================================================
+# Import the enhanced selector with semantic matching
 try:
-    IMPROVED_TOOL_SELECTOR = ImprovedToolSelector()
-    print("[OK] Improved tool selector initialized - confidence-based selection enabled!")
-    USE_IMPROVED_SELECTOR = True
+    from blue.tool_selector_enhanced import (
+        EnhancedToolSelector,
+        integrate_enhanced_selector,
+        TOOL_PROFILES
+    )
+    ENHANCED_SELECTOR_AVAILABLE = True
+    print("[OK] Enhanced tool selector v2.0 loaded - semantic understanding enabled!")
+except ImportError as e:
+    print(f"[WARN] Enhanced selector not available: {e}")
+    ENHANCED_SELECTOR_AVAILABLE = False
+
+# Initialize tool selectors globally
+# Priority: Enhanced v2.0 > Improved v1.0 > Legacy
+try:
+    if ENHANCED_SELECTOR_AVAILABLE:
+        # Use the new semantic-based enhanced selector
+        ENHANCED_TOOL_SELECTOR = EnhancedToolSelector()
+        IMPROVED_TOOL_SELECTOR = ImprovedToolSelector()  # Keep as fallback
+        USE_ENHANCED_SELECTOR = True
+        USE_IMPROVED_SELECTOR = True
+        print("[OK] Enhanced selector v2.0 initialized - semantic tool matching active!")
+    else:
+        IMPROVED_TOOL_SELECTOR = ImprovedToolSelector()
+        USE_ENHANCED_SELECTOR = False
+        USE_IMPROVED_SELECTOR = True
+        print("[OK] Improved tool selector initialized - confidence-based selection enabled!")
 except Exception as e:
     print(f"[WARN] Could not initialize improved selector: {e}")
     print("[INFO] Falling back to legacy detection")
+    USE_ENHANCED_SELECTOR = False
     USE_IMPROVED_SELECTOR = False
 
 
@@ -8286,9 +8313,96 @@ def process_with_tools(messages: List[Dict]) -> Dict:
         if improved_force_tool:
             print(f"   [CORRECTION] Forcing tool: {improved_force_tool} with {improved_tool_args}")
 
-    if USE_IMPROVED_SELECTOR and not improved_force_tool:
+    # ================================================================================
+    # ENHANCED SELECTOR v2.0 - Semantic Understanding (Priority 1)
+    # ================================================================================
+    if USE_ENHANCED_SELECTOR and not improved_force_tool:
+        print(f"   [SELECTOR-V2.0] Using ENHANCED semantic tool selection")
+
+        # Get recent history for context
+        recent_history = conversation_messages[-5:] if len(conversation_messages) > 5 else conversation_messages
+
+        # Run the enhanced semantic selector
+        enhanced_result = ENHANCED_TOOL_SELECTOR.select_tool(last_user_message, recent_history)
+
+        # Check disambiguation
+        if enhanced_result.needs_disambiguation:
+            print(f"   [SELECTOR-V2.0] Disambiguation needed - asking user")
+            conversation_messages.append({
+                'role': 'assistant',
+                'content': enhanced_result.disambiguation_question
+            })
+            return {
+                'response': enhanced_result.disambiguation_question,
+                'needs_clarification': True
+            }
+
+        if enhanced_result.primary_tool:
+            primary = enhanced_result.primary_tool
+
+            # Set tool from enhanced selector
+            improved_force_tool = primary.tool_name
+            improved_tool_args = primary.extracted_params
+
+            # Log enhanced selection
+            print(f"   [SELECTOR-V2.0] Selected: {improved_force_tool}")
+            print(f"   [SELECTOR-V2.0] Confidence: {primary.confidence:.2f}")
+            print(f"   [SELECTOR-V2.0] Match reasons: {', '.join(primary.match_reasons)}")
+
+            # Show parsed intent for debugging
+            intent = enhanced_result.parsed_intent
+            print(f"   [SELECTOR-V2.0] Intent: verb={intent.verb}, object={intent.object}, target={intent.target}")
+
+            if enhanced_result.alternatives:
+                alt_info = [f"{a.tool_name}({a.confidence:.2f})" for a in enhanced_result.alternatives[:2]]
+                print(f"   [SELECTOR-V2.0] Alternatives: {', '.join(alt_info)}")
+
+            if enhanced_result.is_compound:
+                print(f"   [SELECTOR-V2.0] WARNING: Compound request detected")
+
+            # Initialize legacy flags
+            is_greeting = False
+            wants_music_play = False
+            wants_music_control = False
+            wants_visualizer = False
+            wants_javascript = False
+            wants_weather = False
+            wants_lights = False
+            wants_create_document = False
+            wants_browse = False
+            wants_gmail_read = False
+            wants_gmail_send = False
+            wants_gmail_reply = False
+            wants_fanmail_reply = False
+            wants_document_retrieval = False
+            wants_document_search = False
+            wants_web_search = False
+        else:
+            # No tool needed - casual conversation
+            print(f"   [SELECTOR-V2.0] No tool needed - casual/conversational")
+            is_greeting = True
+            wants_music_play = False
+            wants_music_control = False
+            wants_visualizer = False
+            wants_javascript = False
+            wants_weather = False
+            wants_lights = False
+            wants_create_document = False
+            wants_browse = False
+            wants_gmail_read = False
+            wants_gmail_send = False
+            wants_gmail_reply = False
+            wants_fanmail_reply = False
+            wants_document_retrieval = False
+            wants_document_search = False
+            wants_web_search = False
+
+    # ================================================================================
+    # IMPROVED SELECTOR v1.0 - Fallback if Enhanced not available
+    # ================================================================================
+    elif USE_IMPROVED_SELECTOR and not improved_force_tool:
         # ===== USE IMPROVED CONFIDENCE-BASED SELECTOR =====
-        print(f"   [SELECTOR-V2] Using improved confidence-based tool selection")
+        print(f"   [SELECTOR-V1] Using improved confidence-based tool selection")
 
         # Get recent history for context (last 5 messages)
         recent_history = conversation_messages[-5:] if len(conversation_messages) > 5 else conversation_messages
@@ -8298,7 +8412,7 @@ def process_with_tools(messages: List[Dict]) -> Dict:
 
         # Check if disambiguation is needed
         if selection_result.needs_disambiguation:
-            print(f"   [SELECTOR-V2] Low confidence - asking user for clarification")
+            print(f"   [SELECTOR-V1] Low confidence - asking user for clarification")
             # Return disambiguation prompt to user
             conversation_messages.append({
                 'role': 'assistant',
@@ -8320,19 +8434,19 @@ def process_with_tools(messages: List[Dict]) -> Dict:
                 improved_tool_args = selected_tool.extracted_params
 
                 # Log selection details
-                print(f"   [SELECTOR-V2] Selected: {improved_force_tool}")
-                print(f"   [SELECTOR-V2] Confidence: {selected_tool.confidence:.2f}")
-                print(f"   [SELECTOR-V2] Priority: {selected_tool.priority}")
-                print(f"   [SELECTOR-V2] Reason: {selected_tool.reason}")
+                print(f"   [SELECTOR-V1] Selected: {improved_force_tool}")
+                print(f"   [SELECTOR-V1] Confidence: {selected_tool.confidence:.2f}")
+                print(f"   [SELECTOR-V1] Priority: {selected_tool.priority}")
+                print(f"   [SELECTOR-V1] Reason: {selected_tool.reason}")
             else:
-                print(f"   [SELECTOR-V2] Skipping selector - priority tool already set: {improved_force_tool}")
+                print(f"   [SELECTOR-V1] Skipping selector - priority tool already set: {improved_force_tool}")
 
             if selection_result.alternative_tools:
                 alt_names = [t.tool_name for t in selection_result.alternative_tools[:2]]
-                print(f"   [SELECTOR-V2] Alternatives: {', '.join(alt_names)}")
+                print(f"   [SELECTOR-V1] Alternatives: {', '.join(alt_names)}")
 
             if selection_result.compound_request:
-                print(f"   [SELECTOR-V2] WARNING: Compound request (multiple tools needed)")
+                print(f"   [SELECTOR-V1] WARNING: Compound request (multiple tools needed)")
 
             # Initialize legacy detection variables to False (not used with improved selector)
             is_greeting = False
@@ -8356,9 +8470,9 @@ def process_with_tools(messages: List[Dict]) -> Dict:
             if not improved_force_tool:
                 improved_force_tool = None
                 improved_tool_args = None
-                print(f"   [SELECTOR-V2] No tool needed - conversational response")
+                print(f"   [SELECTOR-V1] No tool needed - conversational response")
             else:
-                print(f"   [SELECTOR-V2] Keeping priority tool: {improved_force_tool}")
+                print(f"   [SELECTOR-V1] Keeping priority tool: {improved_force_tool}")
 
             # Initialize detection variables
             is_greeting = True  # Treat as greeting if no tool
@@ -8386,24 +8500,24 @@ def process_with_tools(messages: List[Dict]) -> Dict:
             improved_tool_args = None
         else:
             print(f"   [SELECTOR-LEGACY] Keeping priority tool: {improved_force_tool}")
-        # Continue with legacy detection below...
 
-    is_greeting = detect_no_tool_intent(last_user_message)
-    wants_music_play = detect_music_play_intent(last_user_message)
-    wants_music_control = detect_music_control_intent(last_user_message)
-    wants_visualizer = detect_visualizer_intent(last_user_message)
-    wants_javascript = detect_javascript_intent(last_user_message)
-    wants_weather = detect_weather_intent(last_user_message)
-    wants_lights = detect_light_intent(last_user_message)
-    wants_create_document = detect_create_document_intent(last_user_message)
-    wants_browse = detect_browse_intent(last_user_message)
+        # Only run legacy detection if neither enhanced nor improved selector was used
+        is_greeting = detect_no_tool_intent(last_user_message)
+        wants_music_play = detect_music_play_intent(last_user_message)
+        wants_music_control = detect_music_control_intent(last_user_message)
+        wants_visualizer = detect_visualizer_intent(last_user_message)
+        wants_javascript = detect_javascript_intent(last_user_message)
+        wants_weather = detect_weather_intent(last_user_message)
+        wants_lights = detect_light_intent(last_user_message)
+        wants_create_document = detect_create_document_intent(last_user_message)
+        wants_browse = detect_browse_intent(last_user_message)
 
-    # CRITICAL FIX (Oct 2024): Use unified Gmail operation detector to prevent READ/REPLY confusion
-    gmail_operation = detect_gmail_operation_intent(last_user_message)
-    wants_gmail_read = (gmail_operation == 'read_gmail')
-    wants_gmail_send = (gmail_operation == 'send_gmail')
-    wants_gmail_reply = (gmail_operation == 'reply_gmail')
-    wants_fanmail_reply = detect_fanmail_reply_intent(last_user_message)
+        # CRITICAL FIX (Oct 2024): Use unified Gmail operation detector to prevent READ/REPLY confusion
+        gmail_operation = detect_gmail_operation_intent(last_user_message)
+        wants_gmail_read = (gmail_operation == 'read_gmail')
+        wants_gmail_send = (gmail_operation == 'send_gmail')
+        wants_gmail_reply = (gmail_operation == 'reply_gmail')
+        wants_fanmail_reply = detect_fanmail_reply_intent(last_user_message)
 
     # Track if fanmail has been read in this conversation
     # Look through conversation history for read_gmail results with fanmail
