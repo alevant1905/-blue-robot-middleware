@@ -51,10 +51,22 @@ def fuzzy_match(query: str, targets: List[str], threshold: float = 0.75) -> Opti
         if query_lower == target.lower():
             return target
 
-    # Substring match
+    # Substring match - but require minimum length to avoid false positives
+    # Only match if the substring is at least 4 characters or is a word boundary match
     for target in targets:
-        if query_lower in target.lower() or target.lower() in query_lower:
+        target_lower = target.lower()
+
+        # Full containment (e.g., query="beatles", target="the beatles")
+        if query_lower in target_lower and len(query_lower) >= 4:
             return target
+
+        # Reverse containment with word boundaries (e.g., query="play radiohead", target="radiohead")
+        if target_lower in query_lower:
+            # Check if it's a word boundary match (not part of a larger word)
+            import re
+            pattern = r'\b' + re.escape(target_lower) + r'\b'
+            if re.search(pattern, query_lower):
+                return target
 
     # Similarity matching
     best_match = None
@@ -386,7 +398,11 @@ class ImprovedToolSelector:
             'what is your name', "what's your name", 'can you hear me',
             'are you listening', 'you awake', 'are you awake',
             'what are you doing', 'how are you doing', "how's life",
-            'how have you been', 'what have you been up to'
+            'how have you been', 'what have you been up to',
+            'introduce yourself', 'introduce you', 'tell me about yourself',
+            'tell me about you', 'tell me your story', 'who is blue',
+            'what is blue', 'tell me more about yourself', 'describe yourself',
+            'tell me who you are', 'explain who you are', 'explain what you are'
         ]
         if any(phrase in msg_lower for phrase in casual_about_blue):
             return True
@@ -1495,15 +1511,24 @@ class ImprovedToolSelector:
                 'warm white', 'cool white', 'daylight', 'gold', 'coral', 'salmon'
             ],
             'moods': [
-                'moonlight', 'sunset', 'ocean', 'forest', 'romance', 'party',
+                'moonlight', 'sunset', 'ocean', 'forest', 'romance',
                 'focus', 'relax', 'energize', 'movie', 'fireplace', 'arctic',
                 'sunrise', 'galaxy', 'tropical', 'reading', 'dinner', 'night',
                 'cozy', 'warm', 'cool', 'natural', 'romantic', 'chill', 'calm',
                 'zen', 'meditation', 'spa', 'beach', 'campfire', 'candle', 'aurora',
-                'rainbow', 'disco', 'club', 'concert', 'gaming', 'tv', 'sleep'
-            ]
+                'rainbow', 'tv', 'sleep'
+            ],
+            # Removed ambiguous words that could be music-related: 'party', 'disco', 'club', 'concert', 'gaming'
+            # These are now handled contextually or by music detector
         }
 
+        # Negative signals that indicate this is NOT about lights
+        negative_signals = [
+            'play', 'song', 'music', 'artist', 'album', 'playlist', 'tune',
+            'listen', 'hear', 'sound', 'volume', 'track', 'spotify', 'youtube'
+        ]
+
+        has_negative_signal = any(signal in msg_lower for signal in negative_signals)
         has_light = any(noun in msg_lower for noun in light_signals['nouns'])
         has_action = any(action in msg_lower for action in light_signals['actions'])
         has_color = any(color in msg_lower for color in light_signals['colors'])
@@ -1518,15 +1543,25 @@ class ImprovedToolSelector:
             # Let music visualizer handle this
             return intents
 
+        # If negative signals are present, heavily reduce confidence or skip entirely
+        if has_negative_signal:
+            if has_light and (has_action or has_color):
+                # Only allow if explicitly mentions light control
+                confidence = 0.50
+                reason.append("light control with music context (reduced confidence)")
+            else:
+                # Don't trigger lights if music/audio context is present
+                return intents
+
         if has_light and (has_action or has_color or has_mood):
             confidence = 0.95
             reason.append("light + action/color/mood")
         elif has_mood and not has_light:
-            # Mood words alone suggest lights (e.g., "set it to sunset")
-            # But check for music context
-            if not context.get('has_music_in_history') and 'play' not in msg_lower:
-                confidence = 0.85
-                reason.append("mood keyword (implies lights)")
+            # Mood words alone are WEAK signals - reduced from 0.85 to 0.50
+            # Only trigger if no music context at all
+            if not context.get('has_music_in_history'):
+                confidence = 0.50
+                reason.append("mood keyword only (weak signal)")
         elif has_color and ('set' in msg_lower or 'change' in msg_lower or 'make' in msg_lower):
             confidence = 0.88
             reason.append("color + set/change")

@@ -84,6 +84,15 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
+# Import improved tool selector from blue package (contains all latest improvements)
+try:
+    from blue.tool_selector import ImprovedToolSelector as ImportedToolSelector, ToolIntent, ToolSelectionResult
+    USE_BLUE_PACKAGE_SELECTOR = True
+    print("[OK] Using improved tool selector from blue package with latest enhancements!")
+except ImportError:
+    USE_BLUE_PACKAGE_SELECTOR = False
+    print("[WARN] Could not import from blue package, using embedded tool selector")
+
 # Visual Memory System (if available)
 try:
     from blue_visual_memory import get_visual_memory, VisualMemory
@@ -3113,9 +3122,14 @@ if __name__ == "__main__":
 # ================================================================================
 
 # Initialize the improved tool selector globally
+# Prefer the imported version from blue package if available (has all latest improvements)
 try:
-    IMPROVED_TOOL_SELECTOR = ImprovedToolSelector()
-    print("[OK] Improved tool selector initialized - confidence-based selection enabled!")
+    if USE_BLUE_PACKAGE_SELECTOR:
+        IMPROVED_TOOL_SELECTOR = ImportedToolSelector()
+        print("[OK] Using improved tool selector from blue package - all enhancements active!")
+    else:
+        IMPROVED_TOOL_SELECTOR = ImprovedToolSelector()
+        print("[OK] Using embedded tool selector - consider updating to blue package version")
     USE_IMPROVED_SELECTOR = True
 except Exception as e:
     print(f"[WARN] Could not initialize improved selector: {e}")
@@ -3411,10 +3425,14 @@ WEATHER_KEYWORDS = [
 
 LIGHT_KEYWORDS = [
     'light', 'lights', 'lamp', 'lamps', 'brightness', 'dim', 'bright',
-    'turn on', 'turn off', 'switch on', 'switch off', 'color', 'colour',
-    'mood', 'scene', 'atmosphere', 'illuminate', 'lighting', 'bulb',
+    'turn on the light', 'turn off the light', 'switch on the light', 'switch off the light',
+    'light color', 'light colour', 'change the lights', 'set the lights',
+    'illuminate', 'lighting', 'bulb',
     'darker', 'brighter', 'glow', 'hue', 'philips'
 ]
+# Removed overly generic words: 'mood', 'scene', 'atmosphere', 'turn on', 'turn off', 'switch on', 'switch off', 'color', 'colour'
+# These were too broad and triggered false positives
+# Now require more specific light-related context
 
 VISUALIZER_KEYWORDS = [
     'visualizer', 'light show', 'light dance', 'dancing lights', 'party lights',

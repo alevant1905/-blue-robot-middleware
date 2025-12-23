@@ -32,11 +32,13 @@ LM_STUDIO_RAG_URL = "http://127.0.0.1:1234/v1/rag"
 class Settings:
     """Application settings."""
     LOG_LEVEL: str = "INFO"
-    MAX_ITERATIONS: int = 10
+    MAX_ITERATIONS: int = 6  # Balanced: allows tool use + response (was 10, too many; 4 was too few)
     TOOL_TIMEOUT_SECS: float = 15.0
     TOOL_RETRIES: int = 2
     MAX_CONTEXT_MESSAGES: int = 20
     AUTO_DOCSEARCH_MODE: str = "opt_in"
+    USE_SMART_TOOL_FILTERING: bool = True   # Enable intelligent tool filtering
+    USE_STRICT_TOOL_FORCING: bool = False   # Disabled: qwen3-vl doesn't support strict tool_choice (uses 'required' instead)
 
 
 settings = Settings()
@@ -175,7 +177,7 @@ def call_llm(
     messages: List[Dict[str, Any]],
     tools: Optional[List[Dict[str, Any]]] = None,
     include_tools: bool = True,
-    tool_choice: str = "auto",
+    tool_choice: Any = "auto",  # Can be string or dict for strict forcing
     force_tool: Optional[str] = None,
     max_tokens: Optional[int] = None,
     temperature: Optional[float] = None,
@@ -189,8 +191,12 @@ def call_llm(
         messages: List of conversation messages
         tools: List of tool definitions (optional)
         include_tools: Whether to include tools in the request
-        tool_choice: Tool selection mode ("auto", "none", or specific tool)
-        force_tool: If set, nudge the model to use this specific tool
+        tool_choice: Tool selection mode ("auto", "none", or dict for strict forcing)
+                    Examples:
+                    - "auto": Let model decide
+                    - "none": Don't use tools
+                    - {"type": "function", "function": {"name": "play_music"}}: Force specific tool
+        force_tool: If set, STRICTLY force the model to use this specific tool (legacy param)
         max_tokens: Maximum tokens in response
         temperature: Sampling temperature
         extra: Additional parameters to pass to the API
@@ -203,15 +209,14 @@ def call_llm(
     if client is None:
         return {"error": "LM Studio client not available"}
 
-    # Nudge if a specific tool is required
-    if force_tool:
-        messages = list(messages)
-        if messages and isinstance(messages[-1], dict) and messages[-1].get("role") == "user":
-            messages[-1] = {**messages[-1]}
-            messages[-1]["content"] = (
-                (messages[-1].get("content") or "")
-                + "\n\n[System note: Use the specified tool to satisfy this request.]"
-            )
+    # Convert legacy force_tool parameter to strict tool_choice
+    if force_tool and isinstance(tool_choice, str):
+        # Use strict forcing instead of just nudging
+        tool_choice = {
+            "type": "function",
+            "function": {"name": force_tool}
+        }
+        print(f"   [TOOL_CHOICE] Strict forcing enabled for: {force_tool}")
 
     tools_payload = tools if include_tools and tools else None
 
