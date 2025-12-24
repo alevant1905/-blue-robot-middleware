@@ -4,15 +4,19 @@ Blue Robot LLM Client
 Handles communication with LM Studio (local LLM).
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import os
 import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+# Third-party
 import requests
 
+# Local imports
 from .utils import log
 
 # ================================================================================

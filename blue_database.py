@@ -4,14 +4,18 @@ Handles all persistent storage for memories, preferences, conversations, and mor
 Uses SQLite for simplicity and portability
 """
 
-import sqlite3
-import json
+# Future imports
+from __future__ import annotations
+
+# Standard library
 import hashlib
+import json
+import logging
+import sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
-from contextlib import contextmanager
-import logging
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("blue.database")
 
@@ -591,6 +595,7 @@ class BlueDatabase:
     
     def backup_database(self, backup_path: Path):
         """Create a backup of the database"""
+        # Standard library
         import shutil
         try:
             shutil.copy2(self.db_path, backup_path)
@@ -625,6 +630,7 @@ def create_database(db_path: Path = None) -> BlueDatabase:
     """Create or connect to the Blue database"""
     if db_path is None:
         try:
+            # Blue package
             from config import DATABASE_PATH
             db_path = DATABASE_PATH
         except ImportError:
@@ -651,6 +657,7 @@ if __name__ == "__main__":
     print("Saved memory")
     
     # Test reminder
+    # Standard library
     from datetime import datetime, timedelta
     tomorrow = datetime.now() + timedelta(days=1)
     reminder_id = db.create_reminder("Alex", "Meeting", tomorrow, 

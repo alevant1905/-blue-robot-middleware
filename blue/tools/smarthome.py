@@ -11,8 +11,10 @@ Supports:
 - Energy monitoring
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import datetime
 import json
 import os
@@ -24,6 +26,8 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
+# Third-party
 import requests
 
 # ================================================================================
@@ -270,6 +274,7 @@ class SmartHomeManager:
     def _load_hue_config(self):
         """Load Philips Hue configuration."""
         try:
+            # Local imports
             from .lights import BRIDGE_IP, HUE_USERNAME
             self._hue_bridge_ip = BRIDGE_IP
             self._hue_username = HUE_USERNAME
@@ -518,6 +523,7 @@ class SmartHomeManager:
         elif action == 'color':
             # Handle color by name or RGB
             color = params.get('color', '')
+            # Local imports
             from .lights import COLOR_MAP
             if color.lower() in COLOR_MAP:
                 state.update(COLOR_MAP[color.lower()])
@@ -545,6 +551,7 @@ class SmartHomeManager:
     def create_scene(self, name: str, actions: List[Dict[str, Any]],
                      description: str = None) -> Scene:
         """Create a new scene."""
+        # Standard library
         import uuid
         scene_id = str(uuid.uuid4())[:8]
 

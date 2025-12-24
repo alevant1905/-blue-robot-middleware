@@ -6,8 +6,10 @@ Quick utility functions: time, date, calculator, system info, conversions.
 These tools handle simple queries that don't need external APIs or services.
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import ast
 import datetime
 import json
@@ -20,7 +22,6 @@ import socket
 import subprocess
 import sys
 from typing import Any, Dict, List, Optional, Union
-
 
 # ================================================================================
 # TIME & DATE
@@ -42,6 +43,7 @@ def get_current_time(timezone: str = None, format_24h: bool = False) -> str:
     # Try to use timezone if specified
     if timezone:
         try:
+            # Standard library
             import zoneinfo
             tz = zoneinfo.ZoneInfo(timezone)
             now = datetime.datetime.now(tz)
@@ -524,6 +526,7 @@ def generate_random(type: str = "number", min_val: int = 1, max_val: int = 100,
     Returns:
         JSON string with generated value
     """
+    # Standard library
     import random
     import string
     import uuid as uuid_module

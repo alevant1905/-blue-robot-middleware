@@ -4,14 +4,17 @@ Blue Robot Memory System
 Handles facts storage, extraction, and long-term memory.
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import os
 import re
 import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+# Local imports
 from .utils import log
 
 # ================================================================================
@@ -23,6 +26,7 @@ BLUE_FACTS: Dict[str, str] = {}
 
 # Try to load enhanced memory system
 try:
+    # Blue package
     from blue_memory_improved import get_memory_system
     memory_system = get_memory_system()
     ENHANCED_MEMORY_AVAILABLE = True

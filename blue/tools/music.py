@@ -4,12 +4,15 @@ Blue Robot Music Tools
 Music playback and control using YouTube Music.
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import os
 import webbrowser
 from typing import Any, Dict, List, Optional
 
+# Third-party
 import requests
 
 # Global YouTube Music browser instance
@@ -24,6 +27,7 @@ def init_youtube_music() -> bool:
     global YOUTUBE_MUSIC_BROWSER
     if YOUTUBE_MUSIC_BROWSER is None:
         try:
+            # Third-party
             from ytmusicapi import YTMusic
             YOUTUBE_MUSIC_BROWSER = YTMusic()
             print("[OK] YouTube Music initialized")
@@ -189,6 +193,7 @@ def control_music(action: str) -> str:
     print(f"   [MUSIC] Controlling music: {action}")
 
     try:
+        # Third-party
         import pyautogui
     except ImportError:
         return "Music control requires pyautogui. Install with: pip install pyautogui"

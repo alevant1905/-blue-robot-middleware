@@ -4,12 +4,16 @@ Blue Robot Finance & Budget Tracker
 Track expenses, income, budgets, and financial goals with comprehensive analytics.
 """
 
+# Future imports
+from __future__ import annotations
+
+# Standard library
 import datetime
 import json
 import os
 import sqlite3
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -640,6 +644,7 @@ def add_expense_cmd(category: str, amount: float, description: str,
 
     transaction_date = None
     if date:
+        # Blue package
         from blue.tools.calendar import parse_datetime
         dt = parse_datetime(date)
         if dt:
@@ -668,6 +673,7 @@ def add_income_cmd(category: str, amount: float, description: str,
 
     transaction_date = None
     if date:
+        # Blue package
         from blue.tools.calendar import parse_datetime
         dt = parse_datetime(date)
         if dt:
@@ -743,6 +749,7 @@ def create_financial_goal_cmd(name: str, target_amount: float, deadline: str = N
 
     deadline_timestamp = None
     if deadline:
+        # Blue package
         from blue.tools.calendar import parse_datetime
         dt = parse_datetime(deadline)
         if dt:

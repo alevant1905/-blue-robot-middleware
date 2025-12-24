@@ -13,8 +13,10 @@ Features:
 - Habit chains and dependencies
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import datetime
 import json
 import os

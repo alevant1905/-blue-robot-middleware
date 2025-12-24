@@ -13,8 +13,10 @@ Features:
 - Import/export calendar data
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import datetime
 import json
 import os

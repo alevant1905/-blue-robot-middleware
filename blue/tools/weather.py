@@ -13,8 +13,10 @@ Features:
 - Multiple location support
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import datetime
 import json
 import os
@@ -24,6 +26,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
+# Third-party
 import requests
 
 # ================================================================================

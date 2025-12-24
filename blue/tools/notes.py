@@ -4,8 +4,10 @@ Blue Robot Notes and Tasks Tools
 Manage notes, tasks, and lists with persistent storage.
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import datetime
 import json
 import os
@@ -662,6 +664,7 @@ def format_list_items(items: List[ListItem], list_name: str) -> str:
 
 def parse_due_date(text: str) -> Optional[float]:
     """Parse due date from text."""
+    # Standard library
     import re
     text = text.lower().strip()
     now = datetime.datetime.now()

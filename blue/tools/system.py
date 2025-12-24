@@ -4,8 +4,10 @@ Blue Robot System Tools
 System utilities: clipboard, screenshots, notifications, and more.
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import base64
 import datetime
 import json
@@ -28,6 +30,7 @@ def get_clipboard() -> str:
         JSON result with clipboard text
     """
     try:
+        # Third-party
         import pyperclip
         text = pyperclip.paste()
         return json.dumps({
@@ -39,6 +42,7 @@ def get_clipboard() -> str:
         # Fallback for Windows
         if platform.system() == 'Windows':
             try:
+                # Third-party
                 import win32clipboard
                 win32clipboard.OpenClipboard()
                 try:
@@ -81,6 +85,7 @@ def set_clipboard(text: str) -> str:
         })
 
     try:
+        # Third-party
         import pyperclip
         pyperclip.copy(text)
         return json.dumps({
@@ -92,6 +97,7 @@ def set_clipboard(text: str) -> str:
         # Fallback for Windows
         if platform.system() == 'Windows':
             try:
+                # Third-party
                 import win32clipboard
                 win32clipboard.OpenClipboard()
                 try:
@@ -138,7 +144,8 @@ def take_screenshot(region: str = None, save: bool = True,
         JSON result with screenshot info
     """
     try:
-        from PIL import ImageGrab, Image
+        # Third-party
+        from PIL import Image, ImageGrab
     except ImportError:
         return json.dumps({
             "success": False,
@@ -151,10 +158,13 @@ def take_screenshot(region: str = None, save: bool = True,
             # Try to capture active window (Windows only)
             if platform.system() == 'Windows':
                 try:
+                    # Standard library
+                    from ctypes import windll
+
+                    # Third-party
+                    import win32con
                     import win32gui
                     import win32ui
-                    import win32con
-                    from ctypes import windll
 
                     hwnd = win32gui.GetForegroundWindow()
                     left, top, right, bot = win32gui.GetWindowRect(hwnd)
@@ -205,6 +215,7 @@ def take_screenshot(region: str = None, save: bool = True,
             result["message"] = f"Screenshot saved to {filepath}"
         else:
             # Return as base64
+            # Standard library
             import io
             buffer = io.BytesIO()
             img.save(buffer, format="PNG")
@@ -280,6 +291,7 @@ def send_notification(title: str, message: str, timeout: int = 10) -> str:
         JSON result
     """
     try:
+        # Third-party
         from plyer import notification
         notification.notify(
             title=title,
@@ -295,6 +307,7 @@ def send_notification(title: str, message: str, timeout: int = 10) -> str:
         # Fallback for Windows
         if platform.system() == 'Windows':
             try:
+                # Third-party
                 from win10toast import ToastNotifier
                 toaster = ToastNotifier()
                 toaster.show_toast(title, message, duration=timeout, threaded=True)
@@ -411,6 +424,7 @@ def open_url(url: str) -> str:
         JSON result
     """
     try:
+        # Standard library
         import webbrowser
 
         # Ensure URL has protocol
@@ -490,7 +504,10 @@ def set_volume(level: int = None, mute: bool = None) -> str:
         })
 
     try:
-        from ctypes import cast, POINTER
+        # Standard library
+        from ctypes import POINTER, cast
+
+        # Third-party
         from comtypes import CLSCTX_ALL
         from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
@@ -546,7 +563,10 @@ def get_volume() -> str:
         })
 
     try:
-        from ctypes import cast, POINTER
+        # Standard library
+        from ctypes import POINTER, cast
+
+        # Third-party
         from comtypes import CLSCTX_ALL
         from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 
@@ -588,6 +608,7 @@ def get_system_status() -> str:
         JSON result with system info
     """
     try:
+        # Third-party
         import psutil
     except ImportError:
         # Basic info without psutil

@@ -4,6 +4,10 @@ Blue Robot Configuration
 Central configuration for all Blue modules.
 """
 
+# Future imports
+from __future__ import annotations
+
+# Standard library
 import os
 from pathlib import Path
 

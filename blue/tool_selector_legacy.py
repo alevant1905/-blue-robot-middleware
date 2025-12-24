@@ -10,8 +10,10 @@ Key improvements over original:
 5. Specific disambiguation questions when uncertain
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import re
 from collections import Counter
 from dataclasses import dataclass, field
@@ -19,6 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 # Import MOOD_PRESETS from lights module for light intent detection
 try:
+    # Local imports
     from .tools.lights import MOOD_PRESETS
 except ImportError:
     MOOD_PRESETS = {}
@@ -63,6 +66,7 @@ def fuzzy_match(query: str, targets: List[str], threshold: float = 0.75) -> Opti
         # Reverse containment with word boundaries (e.g., query="play radiohead", target="radiohead")
         if target_lower in query_lower:
             # Check if it's a word boundary match (not part of a larger word)
+            # Standard library
             import re
             pattern = r'\b' + re.escape(target_lower) + r'\b'
             if re.search(pattern, query_lower):

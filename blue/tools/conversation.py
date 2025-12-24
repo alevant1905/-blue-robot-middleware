@@ -11,8 +11,10 @@ Features:
 - Conversation analytics
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import datetime
 import hashlib
 import json
@@ -551,6 +553,7 @@ class ConversationMemory:
     def remember(self, memory_type: str, subject: str, content: str,
                 importance: float = 0.5) -> MemoryEntry:
         """Create a long-term memory."""
+        # Standard library
         import uuid
         memory_id = str(uuid.uuid4())[:8]
 

@@ -10,8 +10,10 @@ v9.0 ENHANCEMENTS:
 - Recognition context for vision model
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import datetime
 import hashlib
 import json
@@ -140,6 +142,7 @@ def view_image(filename: str = None, query: str = None,
     if load_index_fn:
         index = load_index_fn()
     else:
+        # Local imports
         from .documents import load_document_index
         index = load_document_index()
 
@@ -238,6 +241,7 @@ def capture_camera_image(vision_queue: VisionImageQueue = None,
     print(f"   [CAMERA] Capturing brand new image...")
 
     try:
+        # Third-party
         import cv2
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -353,7 +357,8 @@ def start_music_visualizer(duration_seconds: int = 300, style: str = "party",
         global _visualizer_active
 
         if get_lights_fn is None:
-            from .lights import get_hue_lights, control_hue_light
+            # Local imports
+            from .lights import control_hue_light, get_hue_lights
             lights = get_hue_lights()
             ctrl_fn = control_hue_light
         else:
@@ -481,6 +486,7 @@ def capture_and_recognize(vision_queue: VisionImageQueue = None,
     print(f"   [CAMERA+] Capturing with recognition...")
 
     try:
+        # Third-party
         import cv2
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -540,6 +546,7 @@ def capture_and_recognize(vision_queue: VisionImageQueue = None,
         # Run recognition if requested
         if run_recognition:
             try:
+                # Local imports
                 from .recognition import get_recognition_manager
 
                 manager = get_recognition_manager()
@@ -595,6 +602,7 @@ def recognize_uploaded_image(filepath: str) -> str:
         })
 
     try:
+        # Local imports
         from .recognition import get_recognition_manager
 
         manager = get_recognition_manager()
@@ -626,6 +634,7 @@ def get_recognition_context() -> str:
     context_parts = []
 
     try:
+        # Local imports
         from .recognition import get_recognition_manager
 
         manager = get_recognition_manager()
@@ -676,6 +685,7 @@ def teach_person(name: str, image_path: str,
         JSON result
     """
     try:
+        # Local imports
         from .recognition import get_recognition_manager
 
         manager = get_recognition_manager()
@@ -711,6 +721,7 @@ def teach_place(name: str, image_path: str,
         JSON result
     """
     try:
+        # Local imports
         from .recognition import get_recognition_manager
 
         manager = get_recognition_manager()
@@ -738,6 +749,7 @@ def who_do_i_know() -> str:
         JSON result with list of known people
     """
     try:
+        # Local imports
         from .recognition import get_recognition_manager
 
         manager = get_recognition_manager()
@@ -783,6 +795,7 @@ def where_do_i_know() -> str:
         JSON result with list of known places
     """
     try:
+        # Local imports
         from .recognition import get_recognition_manager
 
         manager = get_recognition_manager()

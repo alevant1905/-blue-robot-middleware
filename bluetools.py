@@ -52,47 +52,56 @@ FILE STRUCTURE:
 19. Voice Email Interface (line ~9530)
 """
 
+# Future imports
 # ================================================================================
 # IMPORTS
 # ================================================================================
 from __future__ import annotations
 
 # Standard library
+import base64
 import datetime
+import hashlib
 import json
 import logging
+import mimetypes
 import os
+import pickle
+import random
 import re
 import sqlite3
 import time
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
-import pickle
 import webbrowser
-import random
-import hashlib
-import base64
-import mimetypes
+from email import encoders
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 # Third-party
 import requests
-from flask import Flask, Response, jsonify, redirect, render_template_string, request, send_from_directory, url_for
-from werkzeug.utils import secure_filename
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
+from flask import (
+    Flask,
+    Response,
+    jsonify,
+    redirect,
+    render_template_string,
+    request,
+    send_from_directory,
+    url_for,
+)
 from google.auth.transport.requests import Request
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from werkzeug.utils import secure_filename
 
 # Import Enhanced Tool Selector v2.0 (consolidates v1.0 and v2.0)
 try:
-    from blue.tool_selector import (
-        EnhancedToolSelector as ImportedToolSelector,
-        SelectionResult as ToolSelectionResult,
-        ParsedIntent as ToolIntent
-    )
+    # Blue package
+    from blue.tool_selector import EnhancedToolSelector as ImportedToolSelector
+    from blue.tool_selector import ParsedIntent as ToolIntent
+    from blue.tool_selector import SelectionResult as ToolSelectionResult
     USE_BLUE_PACKAGE_SELECTOR = True
     print("[OK] Using Enhanced Tool Selector v2.0 with semantic understanding!")
 except ImportError:
@@ -101,7 +110,8 @@ except ImportError:
 
 # Visual Memory System (if available)
 try:
-    from blue_visual_memory import get_visual_memory, VisualMemory
+    # Blue package
+    from blue_visual_memory import VisualMemory, get_visual_memory
     VISUAL_MEMORY_AVAILABLE = True
     print("[OK] Visual memory system loaded - Blue can now recognize people and places!")
 except ImportError:
@@ -110,7 +120,8 @@ except ImportError:
 
 # Enhanced Visual Understanding (if available)
 try:
-    from blue_visual_understanding import get_visual_understanding, get_enhanced_vision_context
+    # Blue package
+    from blue_visual_understanding import get_enhanced_vision_context, get_visual_understanding
     VISUAL_UNDERSTANDING_AVAILABLE = True
     print("[OK] Enhanced visual understanding loaded - Blue can understand activities and emotions!")
 except ImportError:
@@ -119,7 +130,8 @@ except ImportError:
 
 # Proactive Assistance (if available)
 try:
-    from blue_proactive_assistance import get_proactive_assistance, ProactiveSuggestion
+    # Third-party
+    from blue_proactive_assistance import ProactiveSuggestion, get_proactive_assistance
     PROACTIVE_ASSISTANCE_AVAILABLE = True
     print("[OK] Proactive assistance loaded - Blue can offer helpful suggestions!")
 except ImportError:
@@ -128,10 +140,15 @@ except ImportError:
 
 # Academic Research Assistant (if available)
 try:
+    # Third-party
     from blue_academic_assistant import (
-        get_academic_assistant, analyze_with_chat, prepare_lecture,
-        generate_discussion_questions, simulate_student_q_and_a,
-        synthesize_research, circumference_content
+        analyze_with_chat,
+        circumference_content,
+        generate_discussion_questions,
+        get_academic_assistant,
+        prepare_lecture,
+        simulate_student_q_and_a,
+        synthesize_research,
     )
     ACADEMIC_ASSISTANT_AVAILABLE = True
     print("[OK] Academic assistant loaded - Teaching and research tools ready!")
@@ -141,9 +158,12 @@ except ImportError:
 
 # Multi-Person Context Awareness (if available)
 try:
+    # Third-party
     from blue_context_awareness import (
-        get_context_awareness, adapt_for_audience, get_audience_context,
-        generate_contextual_greeting
+        adapt_for_audience,
+        generate_contextual_greeting,
+        get_audience_context,
+        get_context_awareness,
     )
     CONTEXT_AWARENESS_AVAILABLE = True
     print("[OK] Context awareness loaded - Blue adapts to his audience!")
@@ -327,7 +347,9 @@ def detect_follow_up_correction(message: str, context: Dict) -> Optional[Dict[st
 
 def smart_cache_key(query: str, tool: str = "") -> str:
     """Generate a smart cache key for query deduplication."""
+    # Standard library
     import hashlib
+
     # Normalize the query
     normalized = query.lower().strip()
     # Remove filler words
@@ -347,6 +369,7 @@ _RESPONSE_CACHE_TTL = 300  # 5 minutes
 
 def get_cached_response(cache_key: str) -> Optional[str]:
     """Get cached response if still valid."""
+    # Standard library
     import time
     if cache_key in _response_cache:
         timestamp, response = _response_cache[cache_key]
@@ -359,6 +382,7 @@ def get_cached_response(cache_key: str) -> Optional[str]:
 
 def cache_response(cache_key: str, response: str):
     """Cache a response."""
+    # Standard library
     import time
     _response_cache[cache_key] = (time.time(), response)
     # Prune old entries
@@ -544,7 +568,9 @@ def truncate_text(text: str, max_length: int = 100, suffix: str = "...") -> str:
 
 def extract_quoted_text(text: str) -> List[str]:
     """Extract all quoted strings from text."""
+    # Standard library
     import re
+
     # Match double and single quotes
     patterns = [
         r'"([^"]+)"',
@@ -558,6 +584,7 @@ def extract_quoted_text(text: str) -> List[str]:
 
 def get_time_ago(timestamp: float) -> str:
     """Convert timestamp to human-readable 'time ago' string."""
+    # Standard library
     import time
     diff = time.time() - timestamp
     
@@ -650,6 +677,7 @@ class ConversationState:
     
     def get_session_stats(self) -> Dict[str, Any]:
         """Get session statistics."""
+        # Standard library
         import time
         return {
             'duration_minutes': (time.time() - self.session_start) / 60,
@@ -743,6 +771,7 @@ def clean_response_text(text: str) -> str:
         return ""
     
     # Remove excessive whitespace
+    # Standard library
     import re
     text = re.sub(r'\n{3,}', '\n\n', text)
     text = re.sub(r' {2,}', ' ', text)
@@ -834,6 +863,7 @@ GMAIL_SCOPES = [
 # ================================================================================
 
 try:
+    # Blue package
     from blue_memory_improved import get_memory_system
     memory_system = get_memory_system()
     ENHANCED_MEMORY_AVAILABLE = True
@@ -958,6 +988,7 @@ def extract_and_save_facts(messages: list) -> bool:
     if not messages:
         return False
     
+    # Standard library
     import re
     facts_to_save = {}
     
@@ -1258,17 +1289,18 @@ except Exception:
 
 # ===== Enhanced Tools Import =====
 try:
+    # Third-party
     from blue_tools_enhanced import (
         CalendarManager,
-        TaskManager,
-        NoteManager,
-        SystemController,
         FileOperations,
-        TimerManager,
-        StorytellingTools,
         LocationServices,
+        MusicController,
+        NoteManager,
         SmartHomeController,
-        MusicController
+        StorytellingTools,
+        SystemController,
+        TaskManager,
+        TimerManager,
     )
     ENHANCED_TOOLS_AVAILABLE = True
     print("[OK] Enhanced tools loaded successfully!")
@@ -1278,6 +1310,7 @@ except ImportError as e:
 
 # ===== Conversation Persistence Setup =====
 try:
+    # Blue package
     from blue_database import create_database
     db = create_database()
     CONVERSATION_DB_AVAILABLE = True
@@ -1315,11 +1348,12 @@ Key improvements over original:
 5. Specific disambiguation questions when uncertain
 """
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple, Set
-import re
-from collections import defaultdict, Counter
+# Standard library
 import json
+import re
+from collections import Counter, defaultdict
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Set, Tuple
 
 
 @dataclass
@@ -1643,6 +1677,7 @@ class ImprovedToolSelector:
         
         if has_img_file:
             # Extract filename
+            # Standard library
             import re
             filename_match = re.search(r'[\w\-\.]+\.(jpg|jpeg|png|gif|webp|bmp|tiff)', msg_lower)
             filename = filename_match.group(0) if filename_match else None
@@ -3194,6 +3229,7 @@ class LMStudioClient:
     
     def is_healthy(self, force_check: bool = False) -> bool:
         """Check if LM Studio is responding (cached for 60s)."""
+        # Standard library
         import time
         now = time.time()
         if not force_check and self._healthy is not None and (now - self._last_health_check) < 60:
@@ -3237,6 +3273,7 @@ class LMStudioClient:
             payload.update(kwargs)
 
         # Retry logic with exponential backoff
+        # Standard library
         import time
         last_error = None
         for attempt in range(self.max_retries):
@@ -3381,9 +3418,10 @@ HUE_USERNAME = HUE_CONFIG.get("username", "")
 
 # Gmail library availability
 try:
-    from googleapiclient.discovery import build  # already imported above
-    from google_auth_oauthlib.flow import InstalledAppFlow  # already imported above
+    # Third-party
     from google.auth.transport.requests import Request  # already imported above
+    from google_auth_oauthlib.flow import InstalledAppFlow  # already imported above
+    from googleapiclient.discovery import build  # already imported above
     GMAIL_AVAILABLE = True
 except Exception:
     GMAIL_AVAILABLE = False
@@ -4050,6 +4088,7 @@ def init_youtube_music():
     global YOUTUBE_MUSIC_BROWSER
     if YOUTUBE_MUSIC_BROWSER is None:
         try:
+            # Third-party
             from ytmusicapi import YTMusic
             YOUTUBE_MUSIC_BROWSER = YTMusic()
             print("[OK] YouTube Music initialized")
@@ -4227,6 +4266,7 @@ def control_music(action: str) -> str:
     print(f"   [MUSIC] Controlling music: {action}")
 
     try:
+        # Third-party
         import pyautogui
     except ImportError:
         return "Music control requires pyautogui. Install with: pip install pyautogui"
@@ -4299,12 +4339,14 @@ def control_music(action: str) -> str:
 _visualizer_active = False
 _visualizer_thread = None
 
+# Standard library
 # Global variable to store images that need to be shown to vision model
 # ================================================================================
 # VISION IMAGE QUEUE SYSTEM (Improved)
 # ================================================================================
 from dataclasses import dataclass
 from typing import Set
+
 
 @dataclass
 class ImageInfo:
@@ -4337,6 +4379,7 @@ class VisionImageQueue:
 
     def add_image(self, filepath: str, filename: str, is_camera: bool = False):
         """Add an image to the queue to be shown."""
+        # Standard library
         import hashlib
         hash_md5 = hashlib.md5()
         with open(filepath, "rb") as f:
@@ -4351,6 +4394,7 @@ class VisionImageQueue:
             print(f"   [VISION-QUEUE] New camera image, cleared old camera images")
 
         if img_hash not in self.viewed_images:
+            # Standard library
             import datetime
             self.pending_images.append(ImageInfo(
                 filename=filename,
@@ -5375,6 +5419,7 @@ def ensure_unique_path(directory: str, filename: str) -> str:
         # Safety check to prevent infinite loop
         if counter > 9999:
             # Use timestamp as last resort
+            # Standard library
             import time
             timestamp = int(time.time())
             new_filename = f"{name}_{timestamp}{ext}"
@@ -5406,6 +5451,7 @@ def encode_image_to_base64(filepath: str) -> Optional[Dict[str, Any]]:
         return None
 
     try:
+        # Standard library
         import base64
         with open(filepath, 'rb') as f:
             image_data = base64.b64encode(f.read()).decode('utf-8')
@@ -5444,6 +5490,7 @@ def extract_text_from_file(filepath: str) -> str:
 
     elif ext == 'pdf':
         try:
+            # Third-party
             import PyPDF2
             text = []
             with open(filepath, 'rb') as f:
@@ -5458,6 +5505,7 @@ def extract_text_from_file(filepath: str) -> str:
 
     elif ext in ['doc', 'docx']:
         try:
+            # Third-party
             import docx
             doc = docx.Document(filepath)
             return '\n'.join([paragraph.text for paragraph in doc.paragraphs])
@@ -5469,6 +5517,7 @@ def extract_text_from_file(filepath: str) -> str:
     elif ext in ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'gif', 'webp']:
         # Image file - store metadata for vision model to view directly
         try:
+            # Third-party
             from PIL import Image
             image = Image.open(filepath)
             width, height = image.size
@@ -5887,9 +5936,12 @@ def capture_camera_image() -> str:
     print(f"   [CAMERA] ⚡ CAPTURING BRAND NEW IMAGE RIGHT NOW...")
 
     try:
-        import cv2
+        # Standard library
         import datetime
         import time
+
+        # Third-party
+        import cv2
 
         # CRITICAL: Unique timestamp with MILLISECONDS
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -5999,6 +6051,7 @@ def capture_camera_image() -> str:
         })
     except Exception as e:
         print(f"   [ERROR] Camera capture failed: {e}")
+        # Standard library
         import traceback
         traceback.print_exc()
         return json.dumps({
@@ -6271,7 +6324,10 @@ def get_weather_data(location: str) -> str:
 try:
     SEARCH_MAX_PER_MINUTE
 except NameError:
-    import threading, time, os
+    # Standard library
+    import os
+    import threading
+    import time
     from collections import deque
     SEARCH_MAX_PER_MINUTE = int(os.getenv("SEARCH_MAX_PER_MINUTE", "8"))
     SEARCH_CACHE_TTL_SEC = int(os.getenv("SEARCH_CACHE_TTL_SEC", "21600"))
@@ -6305,6 +6361,7 @@ def _set_cached(query, value):
 
 def execute_web_search(query: str) -> str:
     """Execute a web search with caching + rate limiting and graceful provider backoff. Returns JSON."""
+    # Standard library
     import time
     from urllib.parse import quote_plus
 
@@ -6334,6 +6391,7 @@ def execute_web_search(query: str) -> str:
 
     # Preferred library path
     try:
+        # Third-party
         from ddgs import DDGS  # UPDATED: Changed from duckduckgo_search to ddgs
         used_provider = "ddgs.DDGS"
         with DDGS() as ddgs:
@@ -6356,6 +6414,7 @@ def execute_web_search(query: str) -> str:
     # Fallback HTML endpoint (no JS)
     if not results:
         try:
+            # Third-party
             import requests
             from bs4 import BeautifulSoup  # type: ignore
             used_provider = "duckduckgo html"
@@ -6418,10 +6477,12 @@ def execute_web_search(query: str) -> str:
 # ===== END patched web search =====
 
 
-# ===== BROWSE WEBSITE TOOL (moved here so it's available to execute_tool) =====
-import re as _re
+# Standard library
 import html as _html
 import json as _json
+
+# ===== BROWSE WEBSITE TOOL (moved here so it's available to execute_tool) =====
+import re as _re
 from typing import Optional
 
 # HTML cleaning patterns
@@ -6459,6 +6520,7 @@ def _clean_html_to_text(html_str: str, max_chars: int = 8000) -> str:
 
 def _extract_links(html_str: str, base_url: str, max_links: int = 40) -> list:
     """Extract links from HTML."""
+    # Standard library
     import urllib.parse as _urlparse2
     out = []
     seen = set()
@@ -6479,8 +6541,11 @@ def _extract_links(html_str: str, base_url: str, max_links: int = 40) -> list:
 
 def _safe_fetch_url(url: str, headers: Optional[dict] = None, timeout: int = 15, max_bytes: int = 1_500_000):
     """Safely fetch a URL with size limits."""
-    import requests as _requests
+    # Standard library
     import urllib.parse as _urlparse3
+
+    # Third-party
+    import requests as _requests
     if not isinstance(url, str):
         raise ValueError("url must be a string")
     u = url.strip()
@@ -6507,6 +6572,7 @@ def _safe_fetch_url(url: str, headers: Optional[dict] = None, timeout: int = 15,
 
 def _execute_browse_website(args: dict) -> str:
     """Execute the browse_website tool."""
+    # Third-party
     import requests
 
     url = (args or {}).get("url", "")
@@ -6877,6 +6943,7 @@ def _execute_reply_gmail(args: Dict[str, Any]) -> str:
                     email_body = base64.urlsafe_b64decode(msg_data['payload']['body']['data']).decode('utf-8')
 
                 # Extract email address from "Name <email@domain.com>" format
+                # Standard library
                 import re
                 email_match = re.search(r'<(.+?)>', original_from)
                 reply_to = email_match.group(1) if email_match else original_from
@@ -6945,6 +7012,7 @@ def execute_tool(tool_name: str, tool_args: Dict[str, Any]) -> str:
     Execute requested tool with enhanced error handling and state tracking.
     v8 ENHANCED: Better state tracking, timing, retry on transient failures.
     """
+    # Standard library
     import time
     start_time = time.time()
     state = get_conversation_state()
@@ -7144,6 +7212,7 @@ def _execute_tool_internal(tool_name: str, tool_args: Dict[str, Any]) -> str:
 
     elif tool_name == "run_javascript":
         try:
+            # Third-party
             import js2py
             result = js2py.eval_js(tool_args.get("code", ""))
             return f"Result: {result}"
@@ -7596,6 +7665,7 @@ def detect_browse_intent(message: str) -> bool:
         return False
 
     # Check for URLs in the message (http://, https://, www.)
+    # Standard library
     import re
     url_pattern = r'https?://\S+|www\.\S+'
     if re.search(url_pattern, msg_lower):
@@ -7940,6 +8010,7 @@ def detect_gmail_operation_intent(message: str) -> str | None:
 
 def extract_email_address(message: str) -> str | None:
     """Extract email address from message."""
+    # Standard library
     import re
     m = re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", message or "")
     return m.group(0) if m else None
@@ -7947,6 +8018,7 @@ def extract_email_address(message: str) -> str | None:
 
 def extract_email_subject_and_body(message: str) -> tuple:
     """Extract subject and body from natural language email request."""
+    # Standard library
     import re
     subject = ""
     body = ""
@@ -8866,6 +8938,7 @@ def process_with_tools(messages: List[Dict]) -> Dict:
                         tool_args = {"filename": filename, "content": content, "file_type": file_type}
                     elif correct_tool == "browse_website":
                         # Extract URL from message
+                        # Standard library
                         import re
                         url_match = re.search(r'https?://\S+', last_user_message)
                         if url_match:
@@ -8898,6 +8971,7 @@ def process_with_tools(messages: List[Dict]) -> Dict:
                             query = "is:unread"
                         elif "from" in msg_lower:
                             # Try to extract sender
+                            # Standard library
                             import re
                             from_match = re.search(r'from\s+([^\s,]+)', msg_lower)
                             if from_match:
@@ -8944,6 +9018,7 @@ def process_with_tools(messages: List[Dict]) -> Dict:
                         elif "unread" in msg_lower:
                             query = "is:unread"
                         elif "from" in msg_lower:
+                            # Standard library
                             import re
                             from_match = re.search(r'from\s+([^\s,]+)', msg_lower)
                             if from_match:
@@ -8954,6 +9029,7 @@ def process_with_tools(messages: List[Dict]) -> Dict:
                             r'(?:reply|respond|say|write|tell them)[:\s]+(.+)',
                             r'(?:saying|message)[:\s]+(.+)',
                         ]
+                        # Standard library
                         import re
                         for pattern in reply_patterns:
                             reply_match = re.search(pattern, last_user_message, re.IGNORECASE)
@@ -9699,6 +9775,7 @@ def delete_document(filename):
 def download_document(filename):
     """Download a document."""
     try:
+        # Third-party
         from flask import send_file
 
         # Security: Make sure filename is safe
@@ -9948,6 +10025,7 @@ def chat_completions():
         return jsonify(response)
     except Exception as e:
         print(f"[ERROR] Error: {e}")
+        # Standard library
         import traceback
         traceback.print_exc()
         return jsonify({"choices": [{"message": {"role": "assistant", "content": f"Error: {str(e)}"}}]}), 500
@@ -10050,8 +10128,9 @@ def memory_summary():
 
 def health():
     """Enhanced health check with comprehensive system status."""
+    # Standard library
     import time
-    
+
     # Core services
     hue_status = "configured" if BRIDGE_IP and HUE_USERNAME else "not configured"
     index = load_document_index()
@@ -10572,6 +10651,7 @@ def facebook_callback():
         """
 
     try:
+        # Blue package
         from blue.tools import get_facebook_integration
         integration = get_facebook_integration()
         result = integration.complete_authentication(code)
@@ -10705,8 +10785,14 @@ USAGE examples:
   use browse: https://example.com
 """
 
-from typing import List, Dict, Optional, Tuple, Any
-import re as _re, json as _json, html as _html, urllib.parse as _urlparse
+# Standard library
+import html as _html
+import json as _json
+import re as _re
+import urllib.parse as _urlparse
+from typing import Any, Dict, List, Optional, Tuple
+
+# Third-party
 import requests
 
 # ---- Ensure TOOLS contains browse_website schema ----
@@ -10846,7 +10932,9 @@ def get_context_limit_for(tool_name: str, default_limit: int = 20) -> int:
 
 
 def _record_gmail_operation(op_type: str, query: str = "", extra: dict | None = None):
-    import time as _t, json as _json
+    # Standard library
+    import json as _json
+    import time as _t
     meta = {"tool": op_type, "query": query or "", "ts": _t.time()}
     if extra and isinstance(extra, dict):
         meta.update(extra)
@@ -10865,13 +10953,22 @@ def _record_gmail_operation(op_type: str, query: str = "", extra: dict | None = 
 # ================================================================================
 
 
+# Standard library
+import dataclasses
+import difflib
+import json
+import os
+
 # ================================================================================
 #                    VOICE EMAIL INTERFACE (CONSOLIDATED)                     #
 #             AddressBook + NLU + Controller + Lazy Wiring Helpers            #
 #                    Appended: 1761490066                                        #
 # ================================================================================
-import re, os, json, difflib, time, typing, dataclasses
+import re
+import time
+import typing
 from dataclasses import dataclass
+
 
 @dataclass
 class _Contact:

@@ -4,8 +4,10 @@ Blue Robot Web Tools
 Web search and browsing functionality.
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import html as _html
 import json
 import os
@@ -16,6 +18,7 @@ from collections import deque
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote_plus, urljoin, urlsplit
 
+# Third-party
 import requests
 
 # ================================================================================
@@ -98,6 +101,7 @@ def execute_web_search(query: str) -> str:
 
     # Try ddgs library first
     try:
+        # Third-party
         from ddgs import DDGS
         used_provider = "ddgs.DDGS"
         with DDGS() as ddgs:
@@ -120,6 +124,7 @@ def execute_web_search(query: str) -> str:
     # Fallback to HTML endpoint
     if not results:
         try:
+            # Third-party
             from bs4 import BeautifulSoup
             used_provider = "duckduckgo html"
             url = f"https://html.duckduckgo.com/html/?q={quote_plus(q)}"

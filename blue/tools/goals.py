@@ -4,12 +4,16 @@ Blue Robot Goals & Projects Management
 Manage long-term goals, projects, milestones, and track progress toward achievements.
 """
 
+# Future imports
+from __future__ import annotations
+
+# Standard library
 import datetime
 import json
 import os
 import sqlite3
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -654,6 +658,7 @@ def create_goal_cmd(title: str, description: str, category: str = "personal",
 
     target_timestamp = None
     if target_date:
+        # Blue package
         from blue.tools.calendar import parse_datetime
         dt = parse_datetime(target_date)
         if dt:
@@ -726,6 +731,7 @@ def create_project_cmd(name: str, description: str, goal_id: str = None,
 
     end_timestamp = None
     if end_date:
+        # Blue package
         from blue.tools.calendar import parse_datetime
         dt = parse_datetime(end_date)
         if dt:
@@ -747,6 +753,7 @@ def add_milestone_cmd(project_id: str, title: str, description: str = "",
 
     due_timestamp = None
     if due_date:
+        # Blue package
         from blue.tools.calendar import parse_datetime
         dt = parse_datetime(due_date)
         if dt:

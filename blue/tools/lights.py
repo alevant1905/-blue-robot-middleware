@@ -4,12 +4,15 @@ Blue Robot Light Tools
 Philips Hue light control.
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import json
 import os
 from typing import Any, Dict, List, Optional
 
+# Third-party
 import requests
 
 # ================================================================================

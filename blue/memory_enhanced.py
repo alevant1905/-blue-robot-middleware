@@ -14,6 +14,10 @@ Features:
 - Importance scoring (prioritizes important memories)
 """
 
+# Future imports
+from __future__ import annotations
+
+# Standard library
 import datetime
 import hashlib
 import json
@@ -22,7 +26,7 @@ import re
 import sqlite3
 import uuid
 from collections import defaultdict
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set, Tuple
 

@@ -12,8 +12,10 @@ Features:
 - Playback history
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import datetime
 import json
 import os
@@ -26,6 +28,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
+# Third-party
 import requests
 
 # ================================================================================

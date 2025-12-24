@@ -12,8 +12,12 @@ Key Features:
 4. Confidence-based tool set expansion
 """
 
-from typing import List, Dict, Any, Optional, Set
+# Future imports
+from __future__ import annotations
+
+# Standard library
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Set
 
 
 @dataclass

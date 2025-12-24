@@ -11,12 +11,16 @@ Makes Blue perceptive about what's actually happening:
 This goes beyond "who" to understand "what's happening" and "why it matters"
 """
 
+# Future imports
+from __future__ import annotations
+
+# Standard library
 import json
 import os
-from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Optional, Tuple
-from datetime import datetime
 import re
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple
 
 # ============================================================================
 # DATA STRUCTURES

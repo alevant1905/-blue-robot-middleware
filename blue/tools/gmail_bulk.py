@@ -13,8 +13,10 @@ Features:
 - Sender management (mute, block, unsubscribe)
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import datetime
 import json
 import os
@@ -383,6 +385,7 @@ class AttachmentManager:
                            filename: str) -> Dict[str, Any]:
         """Download a specific attachment."""
         try:
+            # Standard library
             import base64
 
             attachment = service.users().messages().attachments().get(
@@ -450,6 +453,7 @@ def get_attachment_manager() -> AttachmentManager:
 def bulk_archive_cmd(query: str, max_emails: int = 100) -> str:
     """Archive emails matching query."""
     try:
+        # Blue package
         from blue.tools.gmail import get_gmail_service
 
         service = get_gmail_service()
@@ -470,6 +474,7 @@ def smart_cleanup_cmd(older_than_days: int = 30,
                      categories: str = "promotions,social") -> str:
     """Clean up old emails from specific categories."""
     try:
+        # Blue package
         from blue.tools.gmail import get_gmail_service
 
         service = get_gmail_service()
@@ -490,6 +495,7 @@ def smart_cleanup_cmd(older_than_days: int = 30,
 def find_large_emails_cmd(size_mb: int = 10, max_results: int = 50) -> str:
     """Find emails with large attachments."""
     try:
+        # Blue package
         from blue.tools.gmail import get_gmail_service
 
         service = get_gmail_service()
@@ -509,6 +515,7 @@ def find_large_emails_cmd(size_mb: int = 10, max_results: int = 50) -> str:
 def unsubscribe_cmd(sender_email: str, archive_existing: bool = True) -> str:
     """Unsubscribe from sender."""
     try:
+        # Blue package
         from blue.tools.gmail import get_gmail_service
 
         service = get_gmail_service()

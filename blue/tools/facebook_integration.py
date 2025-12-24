@@ -18,15 +18,21 @@ Requirements:
 - Access Token with proper permissions
 """
 
+# Future imports
+from __future__ import annotations
+
+# Standard library
 import datetime
 import json
 import os
-import requests
 import sqlite3
 import time
 import webbrowser
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlencode
+
+# Third-party
+import requests
 
 # ================================================================================
 # CONFIGURATION
@@ -429,6 +435,7 @@ class FacebookIntegration:
 
     def publish_post(self, post_id: str) -> Dict[str, Any]:
         """Publish an approved post from Social Media Manager to Facebook"""
+        # Blue package
         from blue.tools.social_media import get_social_media_manager
 
         manager = get_social_media_manager()
@@ -488,6 +495,7 @@ class FacebookIntegration:
 
     def sync_engagement(self, post_id: str) -> Dict[str, Any]:
         """Sync engagement data from Facebook for a post"""
+        # Blue package
         from blue.tools.social_media import get_social_media_manager
 
         manager = get_social_media_manager()

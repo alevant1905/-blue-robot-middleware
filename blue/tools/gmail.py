@@ -13,8 +13,10 @@ Features:
 - Draft creation and management
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import base64
 import json
 import mimetypes
@@ -22,13 +24,13 @@ import os
 import pickle
 import re
 from datetime import datetime, timedelta
+from email import encoders
 from email.mime.base import MIMEBase
+from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.image import MIMEImage
-from email import encoders
-from typing import Any, Dict, List, Optional, Tuple
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 # ================================================================================
 # CONFIGURATION
@@ -47,9 +49,10 @@ GMAIL_USER_EMAIL = os.environ.get("GMAIL_USER_EMAIL", "")
 # Check if Gmail libraries are available
 GMAIL_AVAILABLE = False
 try:
-    from googleapiclient.discovery import build
-    from google_auth_oauthlib.flow import InstalledAppFlow
+    # Third-party
     from google.auth.transport.requests import Request
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    from googleapiclient.discovery import build
     GMAIL_AVAILABLE = True
 except ImportError:
     pass

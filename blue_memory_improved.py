@@ -11,17 +11,21 @@ Provides intelligent memory management with:
 This module is designed to replace/enhance the legacy memory system.
 """
 
-import sqlite3
+# Future imports
+from __future__ import annotations
+
+# Standard library
+import hashlib
+import json
+import logging
 import os
 import re
-import json
-import hashlib
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any, Set
-from dataclasses import dataclass, asdict
-from difflib import SequenceMatcher
+import sqlite3
 from collections import defaultdict
-import logging
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from difflib import SequenceMatcher
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger("blue.memory.improved")
 
@@ -1576,6 +1580,7 @@ def get_memory_manager() -> MemoryManager:
 # ================================================================================
 
 if __name__ == "__main__":
+    # Standard library
     import sys
 
     print("=" * 60)

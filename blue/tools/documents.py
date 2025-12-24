@@ -4,8 +4,10 @@ Blue Robot Document Tools
 Document management, indexing, and search.
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import base64
 import hashlib
 import json
@@ -13,6 +15,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+# Third-party
 import requests
 from werkzeug.utils import secure_filename
 
@@ -78,6 +81,7 @@ def ensure_unique_path(directory: str, filename: str) -> str:
         counter += 1
 
         if counter > 9999:
+            # Standard library
             import time
             timestamp = int(time.time())
             new_filename = f"{name}_{timestamp}{ext}"
@@ -144,6 +148,7 @@ def extract_text_from_file(filepath: str) -> str:
 
     elif ext == 'pdf':
         try:
+            # Third-party
             import PyPDF2
             text = []
             with open(filepath, 'rb') as f:
@@ -158,6 +163,7 @@ def extract_text_from_file(filepath: str) -> str:
 
     elif ext in ['doc', 'docx']:
         try:
+            # Third-party
             import docx
             doc = docx.Document(filepath)
             return '\n'.join([paragraph.text for paragraph in doc.paragraphs])
@@ -168,6 +174,7 @@ def extract_text_from_file(filepath: str) -> str:
 
     elif ext in ['png', 'jpg', 'jpeg', 'tiff', 'bmp', 'gif', 'webp']:
         try:
+            # Third-party
             from PIL import Image
             image = Image.open(filepath)
             width, height = image.size

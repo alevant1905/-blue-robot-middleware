@@ -9,8 +9,10 @@ Uses:
 - SQLite for persistent storage of encodings
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import base64
 import datetime
 import hashlib
@@ -21,6 +23,8 @@ import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+# Third-party
 import numpy as np
 
 # ================================================================================
@@ -249,6 +253,7 @@ class FaceRecognitionEngine:
         """Lazy load face_recognition library."""
         if self._face_recognition is None:
             try:
+                # Third-party
                 import face_recognition
                 self._face_recognition = face_recognition
             except ImportError:
@@ -263,6 +268,7 @@ class FaceRecognitionEngine:
         """Lazy load OpenCV."""
         if self._cv2 is None:
             try:
+                # Third-party
                 import cv2
                 self._cv2 = cv2
             except ImportError:
@@ -604,6 +610,7 @@ class PlaceRecognitionEngine:
         """Lazy load OpenCV."""
         if self._cv2 is None:
             try:
+                # Third-party
                 import cv2
                 self._cv2 = cv2
                 self._orb = cv2.ORB_create(nfeatures=1000)
@@ -852,6 +859,7 @@ class RecognitionManager:
 
         Returns faces recognized, place recognized, and unknown face count.
         """
+        # Standard library
         import time
         start_time = time.time()
 
@@ -875,6 +883,7 @@ class RecognitionManager:
 
         # Count unknown faces
         try:
+            # Third-party
             import face_recognition
             image = face_recognition.load_image_file(image_path)
             face_locations = face_recognition.face_locations(image)

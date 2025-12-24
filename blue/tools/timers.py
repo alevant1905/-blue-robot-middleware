@@ -4,8 +4,10 @@ Blue Robot Timer and Reminder Tools
 Manage timers, alarms, and reminders with notifications.
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import datetime
 import json
 import os
@@ -20,12 +22,14 @@ from typing import Any, Callable, Dict, List, Optional
 
 # Try to import notification libraries
 try:
+    # Third-party
     from plyer import notification as plyer_notification
     PLYER_AVAILABLE = True
 except ImportError:
     PLYER_AVAILABLE = False
 
 try:
+    # Standard library
     import winsound
     WINSOUND_AVAILABLE = True
 except ImportError:
@@ -482,6 +486,7 @@ def parse_duration(text: str) -> Optional[int]:
         (r'(\d+)\s*(?:seconds?|secs?|s)\b', 1),
     ]
 
+    # Standard library
     import re
     for pattern, multiplier in patterns:
         matches = re.findall(pattern, text)
@@ -501,6 +506,7 @@ def parse_time(text: str) -> Optional[tuple]:
         "noon" -> (12, 0)
         "midnight" -> (0, 0)
     """
+    # Standard library
     import re
     text = text.lower().strip()
 

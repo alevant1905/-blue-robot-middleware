@@ -14,8 +14,10 @@ Features:
 - Smart search with semantic understanding
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import datetime
 import json
 import os
@@ -370,6 +372,7 @@ class GmailAIManager:
         try:
             # Try to import LLM client
             try:
+                # Blue package
                 from blue.llm import call_llm
             except ImportError:
                 return None
@@ -547,6 +550,7 @@ def get_gmail_ai_manager() -> GmailAIManager:
 def analyze_inbox_cmd(max_emails: int = 20, use_llm: bool = False) -> str:
     """Analyze inbox and provide intelligent summary."""
     try:
+        # Blue package
         from blue.tools.gmail import get_gmail_service
 
         service = get_gmail_service()
@@ -595,6 +599,7 @@ def analyze_inbox_cmd(max_emails: int = 20, use_llm: bool = False) -> str:
 def suggest_reply_cmd(email_id: str, use_llm: bool = True) -> str:
     """Generate a suggested reply for an email."""
     try:
+        # Blue package
         from blue.tools.gmail import get_gmail_service
 
         service = get_gmail_service()

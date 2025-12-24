@@ -18,13 +18,14 @@ Architecture:
 - DisambiguationEngine: Generate helpful clarifying questions
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set, Tuple
-from collections import Counter
-
 
 # ================================================================================
 # DATA CLASSES
@@ -1894,6 +1895,7 @@ ToolSelectionResult = SelectionResult  # Map old result type
 # Keep the old integration function name
 integrate_with_existing_system = integrate_enhanced_selector
 
+# Local imports
 # Re-export common utilities
 from .utils import fuzzy_match, normalize_artist_name
 

@@ -14,6 +14,10 @@ Features:
 - Content ideas and recommendations
 """
 
+# Future imports
+from __future__ import annotations
+
+# Standard library
 import datetime
 import hashlib
 import json
@@ -21,7 +25,7 @@ import os
 import re
 import sqlite3
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -688,6 +692,7 @@ def draft_post_cmd(platform: str, content: str, scheduled_time: str = None,
     # Parse scheduled time if provided
     schedule_timestamp = None
     if scheduled_time:
+        # Blue package
         from blue.tools.calendar import parse_datetime
         dt = parse_datetime(scheduled_time)
         if dt:

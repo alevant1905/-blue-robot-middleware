@@ -4,12 +4,16 @@ Blue Robot Workout & Fitness Tracker
 Track workouts, exercises, nutrition, and fitness progress with comprehensive analytics.
 """
 
+# Future imports
+from __future__ import annotations
+
+# Standard library
 import datetime
 import json
 import os
 import sqlite3
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 

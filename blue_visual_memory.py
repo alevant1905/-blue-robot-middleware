@@ -3,15 +3,20 @@ Blue Robot Visual Memory System
 Allows Blue to recognize and remember people, places, and objects he sees.
 """
 
-import sqlite3
+# Future imports
+from __future__ import annotations
+
+# Standard library
 import json
 import os
+import sqlite3
 from datetime import datetime
-from typing import Dict, List, Optional, Any
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # Visual memory database location
 try:
+    # Blue package
     from config import VISUAL_MEMORY_DB_PATH
     VISUAL_MEMORY_DB = str(VISUAL_MEMORY_DB_PATH)
 except ImportError:

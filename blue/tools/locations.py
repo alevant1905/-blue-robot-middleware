@@ -13,8 +13,10 @@ Features:
 - Integration with maps and navigation
 """
 
+# Future imports
 from __future__ import annotations
 
+# Standard library
 import datetime
 import json
 import math
@@ -26,6 +28,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
+# Third-party
 import requests
 
 # ================================================================================

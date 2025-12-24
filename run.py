@@ -25,9 +25,13 @@ Module Structure:
         └── gmail.py         # Email operations
 """
 
-import sys
-import os
+# Future imports
+from __future__ import annotations
+
+# Standard library
 import io
+import os
+import sys
 
 # Fix Windows console encoding for emojis
 if sys.platform == 'win32':
@@ -53,10 +57,15 @@ def check_modular_imports():
     print("\n📦 Checking modular components...")
 
     try:
+        # Blue package
         from blue import (
-            ImprovedToolSelector, ToolIntent, ToolSelectionResult,
-            load_blue_facts, build_system_preamble,
-            LMStudioClient, settings
+            ImprovedToolSelector,
+            LMStudioClient,
+            ToolIntent,
+            ToolSelectionResult,
+            build_system_preamble,
+            load_blue_facts,
+            settings,
         )
         print("   ✅ blue package (core)")
     except ImportError as e:
@@ -64,19 +73,22 @@ def check_modular_imports():
         return False
 
     try:
-        from blue.tools import (
-            # Music
-            init_youtube_music, play_music, control_music,
-            # Lights
-            get_hue_lights, apply_mood_to_lights, MOOD_PRESETS,
-            # Documents
-            load_document_index, search_documents_rag,
-            # Web
-            execute_web_search, get_weather_data,
-            # Gmail
-            GMAIL_AVAILABLE, execute_read_gmail,
-            # Vision
-            capture_camera_image, get_vision_queue,
+        # Blue package
+        from blue.tools import (  # Music; Lights; Documents; Web; Gmail; Vision
+            GMAIL_AVAILABLE,
+            MOOD_PRESETS,
+            apply_mood_to_lights,
+            capture_camera_image,
+            control_music,
+            execute_read_gmail,
+            execute_web_search,
+            get_hue_lights,
+            get_vision_queue,
+            get_weather_data,
+            init_youtube_music,
+            load_document_index,
+            play_music,
+            search_documents_rag,
         )
         print("   ✅ blue.tools package")
     except ImportError as e:
@@ -84,6 +96,7 @@ def check_modular_imports():
         return False
 
     try:
+        # Blue package
         from blue.tool_selector import ImprovedToolSelector
         selector = ImprovedToolSelector()
         # Quick test
@@ -103,6 +116,7 @@ def check_services():
 
     # Check Hue
     try:
+        # Blue package
         from blue.tools.lights import BRIDGE_IP, HUE_USERNAME, get_hue_lights
         if BRIDGE_IP and HUE_USERNAME:
             lights = get_hue_lights()
@@ -117,6 +131,7 @@ def check_services():
 
     # Check YouTube Music
     try:
+        # Blue package
         from blue.tools.music import init_youtube_music
         if init_youtube_music():
             print("   ✅ YouTube Music: Ready")
@@ -127,6 +142,7 @@ def check_services():
 
     # Check Gmail
     try:
+        # Blue package
         from blue.tools.gmail import GMAIL_AVAILABLE
         if GMAIL_AVAILABLE:
             print("   ✅ Gmail: Available")
@@ -137,6 +153,7 @@ def check_services():
 
     # Check Documents
     try:
+        # Blue package
         from blue.tools.documents import load_document_index
         index = load_document_index()
         doc_count = len(index.get('documents', []))
@@ -152,6 +169,7 @@ def run_server():
 
     # Import bluetools which will start the Flask server
     # The server runs at module level in bluetools.py
+    # Blue package
     import bluetools
 
 def main():
@@ -162,6 +180,7 @@ def main():
     if not check_modular_imports():
         print("\n❌ Modular components failed to load!")
         print("   Falling back to original bluetools.py...")
+        # Blue package
         import bluetools
         return
 
