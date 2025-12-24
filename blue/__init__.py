@@ -47,28 +47,17 @@ from .llm import (
     LM_STUDIO_URL, LM_STUDIO_MODEL, LM_STUDIO_RAG_URL,
 )
 
+# Tool Selector - Now using Enhanced v2.0 as primary
+# (tool_selector.py includes backward compatibility for v1.0 names)
 from .tool_selector import (
-    # Data classes
-    ToolIntent, ToolSelectionResult,
-    # Selector
-    ImprovedToolSelector, integrate_with_existing_system,
+    # Primary v2.0 classes
+    EnhancedToolSelector, ToolProfile, ParsedIntent, ToolMatch, SelectionResult,
+    integrate_enhanced_selector, TOOL_PROFILES, normalize_verb,
+    # Backward compatibility aliases (v1.0)
+    ImprovedToolSelector, ToolIntent, ToolSelectionResult, integrate_with_existing_system,
     # Utilities
     fuzzy_match as tool_fuzzy_match, normalize_artist_name as tool_normalize_artist,
 )
-
-# Enhanced Tool Selector v2.0 with semantic understanding
-try:
-    from .tool_selector_enhanced import (
-        # Data classes
-        ToolProfile, ParsedIntent, ToolMatch, SelectionResult,
-        # Selector
-        EnhancedToolSelector, integrate_enhanced_selector,
-        # Profile data
-        TOOL_PROFILES,
-    )
-    ENHANCED_SELECTOR_AVAILABLE = True
-except ImportError:
-    ENHANCED_SELECTOR_AVAILABLE = False
 
 __all__ = [
     # Version
@@ -89,13 +78,10 @@ __all__ = [
     'LMStudioClient', 'get_lm_client', 'call_llm',
     'Settings', 'settings',
     'LM_STUDIO_URL', 'LM_STUDIO_MODEL', 'LM_STUDIO_RAG_URL',
-    # Tool Selector v1.0
-    'ToolIntent', 'ToolSelectionResult',
-    'ImprovedToolSelector', 'integrate_with_existing_system',
+    # Tool Selector v2.0 (Primary)
+    'EnhancedToolSelector', 'ToolProfile', 'ParsedIntent', 'ToolMatch', 'SelectionResult',
+    'integrate_enhanced_selector', 'TOOL_PROFILES', 'normalize_verb',
+    # Tool Selector v1.0 (Backward Compatibility Aliases)
+    'ImprovedToolSelector', 'ToolIntent', 'ToolSelectionResult', 'integrate_with_existing_system',
     'tool_fuzzy_match', 'tool_normalize_artist',
-    # Enhanced Tool Selector v2.0
-    'ENHANCED_SELECTOR_AVAILABLE',
-    'ToolProfile', 'ParsedIntent', 'ToolMatch', 'SelectionResult',
-    'EnhancedToolSelector', 'integrate_enhanced_selector',
-    'TOOL_PROFILES',
 ]

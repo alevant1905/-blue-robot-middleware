@@ -86,11 +86,15 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
-# Import improved tool selector from blue package (contains all latest improvements)
+# Import Enhanced Tool Selector v2.0 (consolidates v1.0 and v2.0)
 try:
-    from blue.tool_selector import ImprovedToolSelector as ImportedToolSelector, ToolIntent, ToolSelectionResult
+    from blue.tool_selector import (
+        EnhancedToolSelector as ImportedToolSelector,
+        SelectionResult as ToolSelectionResult,
+        ParsedIntent as ToolIntent
+    )
     USE_BLUE_PACKAGE_SELECTOR = True
-    print("[OK] Using improved tool selector from blue package with latest enhancements!")
+    print("[OK] Using Enhanced Tool Selector v2.0 with semantic understanding!")
 except ImportError:
     USE_BLUE_PACKAGE_SELECTOR = False
     print("[WARN] Could not import from blue package, using embedded tool selector")
@@ -3124,44 +3128,24 @@ if __name__ == "__main__":
 # ================================================================================
 
 # ================================================================================
-# ENHANCED TOOL SELECTOR v2.0 - Semantic Understanding
+# TOOL SELECTOR - Consolidated v2.0 (Enhanced with backward compatibility)
 # ================================================================================
-# Import the enhanced selector with semantic matching
-try:
-    from blue.tool_selector_enhanced import (
-        EnhancedToolSelector,
-        integrate_enhanced_selector,
-        TOOL_PROFILES
-    )
-    ENHANCED_SELECTOR_AVAILABLE = True
-    print("[OK] Enhanced tool selector v2.0 loaded - semantic understanding enabled!")
-except ImportError as e:
-    print(f"[WARN] Enhanced selector not available: {e}")
-    ENHANCED_SELECTOR_AVAILABLE = False
+# Since we consolidated tool_selector_enhanced.py -> tool_selector.py,
+# ImportedToolSelector is already EnhancedToolSelector with v1.0 compatibility
 
-# Initialize tool selectors globally
-# Priority: Enhanced v2.0 > Improved v1.0 (from blue package) > Improved v1.0 (embedded) > Legacy
+# Initialize tool selector (now just one version!)
 try:
-    if ENHANCED_SELECTOR_AVAILABLE:
-        # Use the new semantic-based enhanced selector
-        ENHANCED_TOOL_SELECTOR = EnhancedToolSelector()
-        # Use improved selector from blue package as fallback (has all latest enhancements)
-        if USE_BLUE_PACKAGE_SELECTOR:
-            IMPROVED_TOOL_SELECTOR = ImportedToolSelector()
-            print("[OK] Using improved tool selector from blue package as fallback - all enhancements active!")
-        else:
-            IMPROVED_TOOL_SELECTOR = ImprovedToolSelector()
+    if USE_BLUE_PACKAGE_SELECTOR:
+        # ImportedToolSelector is already the enhanced v2.0 with backward compatibility
+        IMPROVED_TOOL_SELECTOR = ImportedToolSelector()
+        ENHANCED_TOOL_SELECTOR = IMPROVED_TOOL_SELECTOR  # They're the same now
         USE_ENHANCED_SELECTOR = True
         USE_IMPROVED_SELECTOR = True
-        print("[OK] Enhanced selector v2.0 initialized - semantic tool matching active!")
+        print("[OK] Consolidated Tool Selector v2.0 initialized - semantic tool matching active!")
     else:
-        # Fall back to improved selector - prefer blue package version
-        if USE_BLUE_PACKAGE_SELECTOR:
-            IMPROVED_TOOL_SELECTOR = ImportedToolSelector()
-            print("[OK] Using improved tool selector from blue package - all enhancements active!")
-        else:
-            IMPROVED_TOOL_SELECTOR = ImprovedToolSelector()
-            print("[OK] Using embedded tool selector - consider updating to blue package version")
+        # Fallback to embedded implementation
+        IMPROVED_TOOL_SELECTOR = ImprovedToolSelector()
+        print("[OK] Using embedded tool selector - consider updating to blue package version")
         USE_ENHANCED_SELECTOR = False
         USE_IMPROVED_SELECTOR = True
 except Exception as e:
