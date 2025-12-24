@@ -10008,7 +10008,19 @@ def chat_completions():
 
         # SAVE ASSISTANT RESPONSE TO DATABASE
         if response:
-            final_content = response["choices"][0]["message"].get("content", "")
+            # Handle different response formats (standard OpenAI format vs custom formats)
+            final_content = ""
+
+            # Try standard OpenAI format first
+            if "choices" in response and len(response["choices"]) > 0:
+                final_content = response["choices"][0]["message"].get("content", "")
+            # Try custom format (for disambiguation, etc.)
+            elif "response" in response:
+                final_content = response["response"]
+            # Try direct content field
+            elif "content" in response:
+                final_content = response["content"]
+
             if final_content:
                 print(f"[OUT] Sending response: {final_content[:100]}..." if len(final_content) > 100 else f"[OUT] Sending response: {final_content}")
 
@@ -10018,20 +10030,35 @@ def chat_completions():
                     content=final_content,
                     session_id=None
                 )
-                
+
                 # AUTO-SAVE LEARNED FACTS & CONSOLIDATE
                 try:
                     # Add assistant response to messages for fact extraction
                     full_conversation = messages + [{"role": "assistant", "content": final_content}]
                     if extract_and_save_facts(full_conversation):
                         log.info("[MEM] ✓ Auto-saved learned facts")
-                    
+
                     # Run memory consolidation if needed
                     if ENHANCED_MEMORY_AVAILABLE and memory_system:
                         memory_system.consolidate_if_needed(user_name=user_name)
-                        
+
                 except Exception as e:
                     log.warning(f"[MEM] Auto-save failed: {e}")
+
+        # Ensure response is in proper format for jsonify
+        # If response is in custom format, convert to standard OpenAI format
+        if response and "choices" not in response:
+            # Convert custom format to OpenAI format
+            content = response.get("response", response.get("content", ""))
+            response = {
+                "choices": [{
+                    "message": {
+                        "role": "assistant",
+                        "content": content
+                    }
+                }],
+                "needs_clarification": response.get("needs_clarification", False)
+            }
 
         return jsonify(response)
     except Exception as e:
