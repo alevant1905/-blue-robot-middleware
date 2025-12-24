@@ -2,6 +2,23 @@
 Blue Robot Middleware Proxy — ENHANCED VERSION v8
 ==================================================
 
+IMPORTANT: This file is being gradually refactored!
+--------------------------------------------------
+Most functionality has been extracted to the modular blue/ package:
+- blue/utils.py - Utility functions (fuzzy_match, parse_compound_request, etc.)
+- blue/memory.py - Memory and facts system
+- blue/llm.py - LLM client and settings
+- blue/tool_selector.py - Enhanced tool selection (v2.0)
+- blue/tools/* - Individual tool modules (30+ tools)
+
+This file (bluetools.py) is kept as a monolithic fallback for:
+1. Backward compatibility with existing deployments
+2. Standalone operation without the blue/ package
+3. Flask server routes and initialization
+
+PREFERRED: Use "python run.py" which loads the modular blue/ package.
+FALLBACK: Run bluetools.py directly for standalone operation.
+
 v8 ENHANCEMENTS (November 2025):
 - Compound request parsing ("play jazz and set romantic lights")
 - Follow-up correction detection ("no, make it blue" / "louder")
@@ -24,30 +41,24 @@ v6 ENHANCEMENTS:
 - Enhanced fact extraction: vehicles, medical, languages, skills
 - Robust error handling with auto-retry
 
-v5: Cleanup and consolidation
-v4: Smart email parameter extraction
-v3: Enhanced fact extraction, topic decay
-v2: Greeting detection, timer/reminder detection
-v1: Camera detection, email/search disambiguation
-
 FILE STRUCTURE:
 1. Imports & Configuration (line ~70)
-2. Utility Functions (line ~170) - Enhanced in v8
-3. Database & Memory (line ~560)  
+2. Utility Functions (line ~170) - Also in blue/utils.py
+3. Database & Memory (line ~560) - Also in blue/memory.py
 4. System Prompt (line ~950)
-5. Tool Definitions (line ~960)
-6. Tool Selector (line ~1050)
-7. LLM Client (line ~2650)
-8. Music Functions (line ~3050)
-9. Vision & Camera (line ~3350)
-10. Document Functions (line ~4350)
-11. Light Functions (line ~5150)
-12. Web Search (line ~5350)
-13. Gmail Functions (line ~5650)
+5. Tool Definitions (line ~960) - Also in blue/tool_selector.py
+6. Tool Selector (line ~1050) - Also in blue/tool_selector.py
+7. LLM Client (line ~2650) - Also in blue/llm.py
+8. Music Functions (line ~3050) - Also in blue/tools/music.py
+9. Vision & Camera (line ~3350) - Also in blue/tools/vision.py
+10. Document Functions (line ~4350) - Also in blue/tools/documents.py
+11. Light Functions (line ~5150) - Also in blue/tools/lights.py
+12. Web Search (line ~5350) - Also in blue/tools/web.py
+13. Gmail Functions (line ~5650) - Also in blue/tools/gmail*.py
 14. Main Tool Executor (line ~6000)
 15. Legacy Detect Functions (line ~6450)
 16. Process With Tools (line ~7200)
-17. Flask Routes (line ~8450)
+17. Flask Routes (line ~8450) - Unique to bluetools.py
 18. Gmail Upgrades (line ~9410)
 19. Voice Email Interface (line ~9530)
 """
