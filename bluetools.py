@@ -58,11 +58,13 @@ FILE STRUCTURE:
 from __future__ import annotations
 
 # Standard library
+import datetime
 import json
 import logging
 import os
 import re
 import sqlite3
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import pickle
@@ -589,7 +591,7 @@ class ConversationState:
         self.tool_sequence: List[str] = []  # Track tool order
         self.last_query: str = ""
         self.query_count: int = 0
-        self.session_start: float = __import__('time').time()
+        self.session_start: float = time.time()
     
     def record_tool_use(self, tool_name: str, success: bool, pattern: str = "", args: Dict = None):
         """Record tool usage for learning."""
@@ -621,7 +623,7 @@ class ConversationState:
         self.user_corrections.append({
             'original': original,
             'corrected': corrected,
-            'timestamp': __import__('time').time()
+            'timestamp': time.time()
         })
         if len(self.user_corrections) > 50:
             self.user_corrections.pop(0)
@@ -6043,7 +6045,7 @@ def create_document_file(filename: str, content: str, file_type: str = "txt") ->
         # Check if file already exists
         if os.path.exists(filepath):
             # Add timestamp to make it unique
-            timestamp = __import__('datetime').datetime.now().strftime('%Y%m%d_%H%M%S')
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
             name_part = filename.rsplit('.', 1)[0]
             ext_part = filename.rsplit('.', 1)[1]
             filename = f"{name_part}_{timestamp}.{ext_part}"
@@ -6070,7 +6072,7 @@ def create_document_file(filename: str, content: str, file_type: str = "txt") ->
             'filepath': str(filepath),
             'size': file_size,
             'hash': file_hash,
-            'uploaded_at': __import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'uploaded_at': datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
             'text_preview': content[:500] if len(content) > 500 else content,
             'indexed_in_rag': False,  # Created files are not automatically indexed in RAG
             'created_by_blue': True  # Mark as created by Blue
@@ -9634,7 +9636,7 @@ def manage_documents():
                             'filepath': str(filepath),
                             'size': file_size,
                             'hash': file_hash,
-                            'uploaded_at': __import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M'),
+                            'uploaded_at': datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
                             'text_preview': text_preview,
                             'indexed_in_rag': rag_success
                         })

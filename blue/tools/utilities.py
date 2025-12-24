@@ -8,9 +8,11 @@ These tools handle simple queries that don't need external APIs or services.
 
 from __future__ import annotations
 
+import ast
 import datetime
 import json
 import math
+import operator
 import os
 import platform
 import re
@@ -146,12 +148,93 @@ def get_datetime_info() -> str:
 
 
 # ================================================================================
-# CALCULATOR
+# CALCULATOR (Safe AST-based evaluation)
 # ================================================================================
+
+class SafeMathEvaluator(ast.NodeVisitor):
+    """
+    Safe mathematical expression evaluator using AST.
+    Prevents arbitrary code execution while supporting common math operations.
+    """
+
+    # Supported operators
+    operators = {
+        ast.Add: operator.add,
+        ast.Sub: operator.sub,
+        ast.Mult: operator.mul,
+        ast.Div: operator.truediv,
+        ast.FloorDiv: operator.floordiv,
+        ast.Mod: operator.mod,
+        ast.Pow: operator.pow,
+        ast.USub: operator.neg,
+        ast.UAdd: operator.pos,
+    }
+
+    # Supported functions
+    functions = {
+        'sqrt': math.sqrt,
+        'sin': math.sin,
+        'cos': math.cos,
+        'tan': math.tan,
+        'log': math.log10,
+        'ln': math.log,
+        'exp': math.exp,
+        'abs': abs,
+        'round': round,
+        'floor': math.floor,
+        'ceil': math.ceil,
+        'pow': pow,
+    }
+
+    # Supported constants
+    constants = {
+        'pi': math.pi,
+        'e': math.e,
+    }
+
+    def eval(self, node):
+        """Evaluate an AST node."""
+        if isinstance(node, ast.Num):  # Number
+            return node.n
+        elif isinstance(node, ast.Constant):  # Python 3.8+ constant
+            return node.value
+        elif isinstance(node, ast.BinOp):  # Binary operation (e.g., 2 + 3)
+            left = self.eval(node.left)
+            right = self.eval(node.right)
+            op = self.operators.get(type(node.op))
+            if op is None:
+                raise ValueError(f"Unsupported operator: {node.op.__class__.__name__}")
+            return op(left, right)
+        elif isinstance(node, ast.UnaryOp):  # Unary operation (e.g., -5)
+            operand = self.eval(node.operand)
+            op = self.operators.get(type(node.op))
+            if op is None:
+                raise ValueError(f"Unsupported unary operator: {node.op.__class__.__name__}")
+            return op(operand)
+        elif isinstance(node, ast.Call):  # Function call
+            if isinstance(node.func, ast.Name):
+                func_name = node.func.id
+                func = self.functions.get(func_name)
+                if func is None:
+                    raise ValueError(f"Unsupported function: {func_name}")
+                args = [self.eval(arg) for arg in node.args]
+                return func(*args)
+            else:
+                raise ValueError("Complex function calls not supported")
+        elif isinstance(node, ast.Name):  # Variable/constant name
+            name = node.id
+            if name in self.constants:
+                return self.constants[name]
+            raise ValueError(f"Unknown variable: {name}")
+        elif isinstance(node, ast.Expression):  # Expression wrapper
+            return self.eval(node.body)
+        else:
+            raise ValueError(f"Unsupported expression type: {node.__class__.__name__}")
+
 
 def calculate(expression: str) -> str:
     """
-    Safely evaluate a mathematical expression.
+    Safely evaluate a mathematical expression using AST parsing.
 
     Args:
         expression: Math expression to evaluate (e.g., "2 + 2", "sqrt(16)", "15% of 200")
@@ -193,8 +276,6 @@ def calculate(expression: str) -> str:
             ' cubed': '**3',
             'square root of ': 'sqrt(',
             'sqrt of ': 'sqrt(',
-            'pi': str(math.pi),
-            'e': str(math.e),
         }
 
         for word, symbol in replacements.items():
@@ -204,42 +285,20 @@ def calculate(expression: str) -> str:
         if 'sqrt(' in expr and expr.count('(') > expr.count(')'):
             expr += ')'
 
-        # Safe math functions
-        safe_dict = {
-            'sqrt': math.sqrt,
-            'sin': math.sin,
-            'cos': math.cos,
-            'tan': math.tan,
-            'log': math.log10,
-            'ln': math.log,
-            'exp': math.exp,
-            'abs': abs,
-            'round': round,
-            'floor': math.floor,
-            'ceil': math.ceil,
-            'pow': pow,
-            'pi': math.pi,
-            'e': math.e,
-        }
-
-        # Only allow safe characters
-        allowed_chars = set('0123456789+-*/.()^ ')
-        expr_check = expr
-        for func in safe_dict:
-            expr_check = expr_check.replace(func, '')
-
-        if not all(c in allowed_chars for c in expr_check):
-            return json.dumps({
-                "success": False,
-                "error": "Invalid characters in expression",
-                "expression": expression
-            })
-
-        # Replace ^ with **
+        # Replace ^ with ** for exponentiation
         expr = expr.replace('^', '**')
 
-        # Evaluate
-        result = eval(expr, {"__builtins__": {}}, safe_dict)
+        # Parse and evaluate using AST (safe from code injection)
+        try:
+            tree = ast.parse(expr, mode='eval')
+            evaluator = SafeMathEvaluator()
+            result = evaluator.eval(tree)
+        except SyntaxError:
+            return json.dumps({
+                "success": False,
+                "error": "Invalid mathematical expression syntax",
+                "expression": expression
+            })
 
         # Format result
         if isinstance(result, float):
@@ -259,6 +318,12 @@ def calculate(expression: str) -> str:
         return json.dumps({
             "success": False,
             "error": "Division by zero",
+            "expression": expression
+        })
+    except ValueError as e:
+        return json.dumps({
+            "success": False,
+            "error": str(e),
             "expression": expression
         })
     except Exception as e:
