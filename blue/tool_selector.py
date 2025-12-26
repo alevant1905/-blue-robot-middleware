@@ -898,8 +898,26 @@ class ImprovedToolSelector:
         """
         Detect music-related intents with comprehensive artist/genre recognition.
         ENHANCED v6: 200+ artists, 60+ genres, fuzzy matching
+        ENHANCED v7: Better false positive filtering for non-music "play" contexts
         """
         intents = []
+
+        # EARLY EXIT: Non-music "play" contexts that should NEVER trigger music
+        non_music_play_phrases = [
+            'play a game', 'play game', 'play games', 'play video game', 'play the game',
+            'play a video', 'play video', 'play this video', 'play the video',
+            'play a role', 'play the role', 'play a part', 'play the part',
+            'play sports', 'play a sport', 'play basketball', 'play football', 'play soccer',
+            'play tennis', 'play golf', 'play baseball', 'play hockey',
+            'play cards', 'play poker', 'play chess', 'play checkers',
+            'play with', 'play around', "let's play", 'wanna play', 'want to play',
+            'play a match', 'play the match', 'play a round',
+            'play a trick', 'play tricks', 'play a joke', 'play pranks',
+            'role play', 'roleplay', 'word play', 'wordplay', 'fair play',
+            'at play', "child's play", 'foul play', 'power play'
+        ]
+        if any(phrase in msg_lower for phrase in non_music_play_phrases):
+            return intents  # Return empty - no music intent
 
         # PLAY music signals
         play_signals = ['play', 'put on', 'start playing', 'queue up', 'listen to', 'throw on',
@@ -1542,7 +1560,11 @@ class ImprovedToolSelector:
         light_adjective_phrases = [
             'light snack', 'light meal', 'light reading', 'light exercise',
             'light work', 'light duty', 'light touch', 'light breeze',
-            'light rain', 'light traffic', 'light weight', 'light load'
+            'light rain', 'light traffic', 'light weight', 'light load',
+            'light blue', 'light green', 'light pink', 'light grey', 'light gray',
+            'light brown', 'light yellow', 'light purple', 'light orange',
+            'bring to light', 'see the light', 'light of day', 'in light of',
+            'light years', 'speed of light', 'light as a feather'
         ]
         if any(phrase in msg_lower for phrase in light_adjective_phrases):
             # "light" is being used as an adjective, not about lights

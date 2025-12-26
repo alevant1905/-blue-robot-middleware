@@ -7493,12 +7493,43 @@ def detect_weather_intent(message: str) -> bool:
     return any(kw in msg_lower for kw in WEATHER_KEYWORDS)
 
 def detect_light_intent(message: str) -> bool:
-    """Detect light control requests."""
+    """
+    Detect light control requests with improved false positive filtering.
+    Must have BOTH a light noun AND an action OR color to trigger.
+    """
     msg_lower = message.lower()
+
     # Exclude visualizer requests from regular light control
     if detect_visualizer_intent(message):
         return False
-    return any(kw in msg_lower for kw in LIGHT_KEYWORDS)
+
+    # Filter out "light" used as adjective (NOT about lighting)
+    light_adjective_phrases = [
+        'light snack', 'light meal', 'light reading', 'light exercise',
+        'light work', 'light duty', 'light touch', 'light breeze',
+        'light rain', 'light traffic', 'light weight', 'light load',
+        'light blue', 'light green', 'light pink', 'light grey', 'light gray',
+        'bring to light', 'see the light', 'light of day', 'in light of'
+    ]
+    if any(phrase in msg_lower for phrase in light_adjective_phrases):
+        return False
+
+    # Light nouns - must have one of these
+    light_nouns = ['light', 'lights', 'lamp', 'lamps', 'bulb', 'bulbs', 'hue', 'lighting']
+    has_light_noun = any(noun in msg_lower for noun in light_nouns)
+
+    # Actions that indicate light control
+    light_actions = ['turn on', 'turn off', 'switch on', 'switch off', 'dim', 'brighten',
+                     'set to', 'change to', 'make it', 'adjust', 'lights on', 'lights off']
+    has_action = any(action in msg_lower for action in light_actions)
+
+    # Colors that suggest light control (when combined with light noun)
+    light_colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'white', 'pink',
+                    'cyan', 'warm', 'cool', 'bright', 'dim']
+    has_color = any(color in msg_lower for color in light_colors)
+
+    # Must have light noun AND (action OR color)
+    return has_light_noun and (has_action or has_color)
 
 def detect_visualizer_intent(message: str) -> bool:
     """Detect light visualizer/show requests."""
@@ -7595,25 +7626,62 @@ def detect_browse_intent(message: str) -> bool:
 
 def detect_music_play_intent(message: str) -> bool:
     """
-    Detect requests to play music.
+    Detect requests to play music with improved false positive filtering.
 
-    To avoid confusion with search requests about music (e.g., "find information about Taylor Swift"
-    or "search for songs"), we require that no generic search terms appear in the request when
-    deciding to play music. If the user asks to "search" or "find" music information, we
-    should route that to the web_search tool instead of playing the music.
+    Key improvements:
+    - Filters out "play" in non-music contexts (games, videos, sports, etc.)
+    - Requires explicit music context or artist/genre mention
+    - Excludes information-seeking queries
     """
     msg_lower = message.lower()
-    # Must have "play" or similar + some music context
-    has_play = any(kw in msg_lower for kw in MUSIC_PLAY_KEYWORDS)
-    has_music_context = any(word in msg_lower for word in ['music', 'song', 'artist', 'album', 'by ', 'jazz', 'rock', 'pop', 'classical'])
-    # Exclude phrases that indicate searching for information rather than playing
-    search_terms = ['search', 'find', 'information', 'info', 'who', 'what', 'where', 'why']
-    if has_play and has_music_context:
-        # If the message also contains search/intel gathering terms, do not treat as music play
-        if any(term in msg_lower for term in search_terms):
-            return False
-        return True
-    return False
+
+    # Non-music "play" contexts that should NOT trigger music
+    non_music_play_contexts = [
+        'play a game', 'play game', 'play games', 'play video game', 'play the game',
+        'play a video', 'play video', 'play this video', 'play the video',
+        'play a role', 'play the role', 'play a part', 'play the part',
+        'play sports', 'play a sport', 'play basketball', 'play football', 'play soccer',
+        'play tennis', 'play golf', 'play baseball', 'play hockey',
+        'play cards', 'play poker', 'play chess', 'play checkers',
+        'play with', 'play around', 'let\'s play', 'wanna play', 'want to play',
+        'play a match', 'play the match', 'play a round',
+        'play a trick', 'play tricks', 'play a joke', 'play pranks',
+        'role play', 'roleplay', 'word play', 'wordplay', 'fair play',
+        'at play', 'child\'s play', 'foul play', 'power play'
+    ]
+    if any(phrase in msg_lower for phrase in non_music_play_contexts):
+        return False
+
+    # Must have "play" or similar
+    play_keywords = ['play', 'put on', 'listen to', 'start playing', 'i want to hear', 'can you play']
+    has_play = any(kw in msg_lower for kw in play_keywords)
+
+    if not has_play:
+        return False
+
+    # Music context signals
+    music_nouns = ['music', 'song', 'songs', 'artist', 'album', 'track', 'playlist', 'tune', 'tunes']
+    has_music_noun = any(noun in msg_lower for noun in music_nouns)
+
+    # Common genres
+    genres = ['jazz', 'rock', 'pop', 'classical', 'hip hop', 'country', 'r&b', 'electronic',
+              'metal', 'punk', 'blues', 'soul', 'funk', 'reggae', 'folk', 'indie', 'edm', 'rap']
+    has_genre = any(genre in msg_lower for genre in genres)
+
+    # Some very common artists (not exhaustive - improved selector has the full list)
+    common_artists = ['beatles', 'taylor swift', 'drake', 'queen', 'coldplay', 'ed sheeran',
+                      'adele', 'beyonce', 'kanye', 'eminem', 'michael jackson', 'elvis',
+                      'bruno mars', 'ariana grande', 'billie eilish', 'the weeknd']
+    has_artist = any(artist in msg_lower for artist in common_artists)
+
+    # Exclude information-seeking queries
+    info_terms = ['search', 'find', 'information', 'info', 'who is', 'what is', 'tell me about',
+                  'wikipedia', 'wiki', 'how old', 'when did', 'where is']
+    if any(term in msg_lower for term in info_terms):
+        return False
+
+    # Must have play AND (music noun OR genre OR artist)
+    return has_play and (has_music_noun or has_genre or has_artist)
 
 def detect_music_control_intent(message: str) -> bool:
     """Detect requests to control currently playing music."""
@@ -8386,75 +8454,73 @@ def process_with_tools(messages: List[Dict]) -> Dict:
             improved_tool_args = None
         else:
             print(f"   [SELECTOR-LEGACY] Keeping priority tool: {improved_force_tool}")
-        # Continue with legacy detection below...
 
-    is_greeting = detect_no_tool_intent(last_user_message)
-    wants_music_play = detect_music_play_intent(last_user_message)
-    wants_music_control = detect_music_control_intent(last_user_message)
-    wants_visualizer = detect_visualizer_intent(last_user_message)
-    wants_javascript = detect_javascript_intent(last_user_message)
-    wants_weather = detect_weather_intent(last_user_message)
-    wants_lights = detect_light_intent(last_user_message)
-    wants_create_document = detect_create_document_intent(last_user_message)
-    wants_browse = detect_browse_intent(last_user_message)
+        # LEGACY DETECTION - Only run when NOT using improved selector
+        is_greeting = detect_no_tool_intent(last_user_message)
+        wants_music_play = detect_music_play_intent(last_user_message)
+        wants_music_control = detect_music_control_intent(last_user_message)
+        wants_visualizer = detect_visualizer_intent(last_user_message)
+        wants_javascript = detect_javascript_intent(last_user_message)
+        wants_weather = detect_weather_intent(last_user_message)
+        wants_lights = detect_light_intent(last_user_message)
+        wants_create_document = detect_create_document_intent(last_user_message)
+        wants_browse = detect_browse_intent(last_user_message)
 
-    # CRITICAL FIX (Oct 2024): Use unified Gmail operation detector to prevent READ/REPLY confusion
-    gmail_operation = detect_gmail_operation_intent(last_user_message)
-    wants_gmail_read = (gmail_operation == 'read_gmail')
-    wants_gmail_send = (gmail_operation == 'send_gmail')
-    wants_gmail_reply = (gmail_operation == 'reply_gmail')
-    wants_fanmail_reply = detect_fanmail_reply_intent(last_user_message)
+        # CRITICAL FIX (Oct 2024): Use unified Gmail operation detector to prevent READ/REPLY confusion
+        gmail_operation = detect_gmail_operation_intent(last_user_message)
+        wants_gmail_read = (gmail_operation == 'read_gmail')
+        wants_gmail_send = (gmail_operation == 'send_gmail')
+        wants_gmail_reply = (gmail_operation == 'reply_gmail')
+        wants_fanmail_reply = detect_fanmail_reply_intent(last_user_message)
 
-    # Track if fanmail has been read in this conversation
-    # Look through conversation history for read_gmail results with fanmail
+        # NEW: Distinguish between document operations
+        wants_document_retrieval = detect_document_retrieval_intent(last_user_message)
+        wants_document_search = detect_document_search_intent(last_user_message)
+
+        # NEW: Better web search detection
+        wants_web_search = detect_web_search_intent_improved(last_user_message)
+
+        # LOGGING - Show all detected intents with clear categorization
+        print(f"   [DETECT-LEGACY] Intent analysis:")
+        if is_greeting:
+            print(f"      → Greeting/casual chat (NO TOOL NEEDED)")
+        if wants_music_play:
+            print(f"      → Play music request")
+        if wants_music_control:
+            print(f"      → Music control request")
+        if wants_visualizer:
+            print(f"      → Light visualizer request")
+        if wants_javascript:
+            print(f"      → JavaScript/code execution request")
+        if wants_document_retrieval:
+            print(f"      → Document RETRIEVAL request (read specific document)")
+        if wants_document_search:
+            print(f"      → Document SEARCH request (search within documents)")
+        if wants_web_search:
+            print(f"      → WEB SEARCH request (search internet)")
+        if wants_weather:
+            print(f"      → Weather request")
+        if wants_lights:
+            print(f"      → Light control request")
+        if wants_create_document:
+            print(f"      → Document creation request")
+        if wants_browse:
+            print(f"      → Website browse request")
+        if wants_gmail_read:
+            print(f"      → Gmail READ request (check inbox)")
+        if wants_gmail_send:
+            print(f"      → Gmail SEND request (send email)")
+        if wants_gmail_reply:
+            print(f"      → Gmail REPLY request (reply to emails)")
+            if wants_fanmail_reply:
+                print(f"      → FANMAIL REPLY detected!")
+
+    # Track if fanmail has been read in this conversation (always needed)
     fanmail_has_been_read = False
     for msg in conversation_messages:
         if msg.get("role") == "tool" and "Fanmail" in msg.get("content", ""):
             fanmail_has_been_read = True
             break
-
-    # NEW: Distinguish between document operations
-    wants_document_retrieval = detect_document_retrieval_intent(last_user_message)
-    wants_document_search = detect_document_search_intent(last_user_message)
-
-    # NEW: Better web search detection
-    wants_web_search = detect_web_search_intent_improved(last_user_message)
-
-    # LOGGING - Show all detected intents with clear categorization
-    print(f"   [DETECT] Intent analysis:")
-    if is_greeting:
-        print(f"      → Greeting/casual chat (NO TOOL NEEDED)")
-    if wants_music_play:
-        print(f"      → Play music request")
-    if wants_music_control:
-        print(f"      → Music control request")
-    if wants_visualizer:
-        print(f"      → Light visualizer request")
-    if wants_javascript:
-        print(f"      → JavaScript/code execution request")
-    if wants_document_retrieval:
-        print(f"      → Document RETRIEVAL request (read specific document)")
-    if wants_document_search:
-        print(f"      → Document SEARCH request (search within documents)")
-    if wants_web_search:
-        print(f"      → WEB SEARCH request (search internet)")
-    if wants_weather:
-        print(f"      → Weather request")
-    if wants_lights:
-        print(f"      → Light control request")
-    if wants_create_document:
-        print(f"      → Document creation request")
-    if wants_browse:
-        print(f"      → Website browse request")
-    if wants_gmail_read:
-        print(f"      → Gmail READ request (check inbox)")
-    if wants_gmail_send:
-        print(f"      → Gmail SEND request (send email)")
-    if wants_gmail_reply:
-        print(f"      → Gmail REPLY request (reply to emails)")
-        if wants_fanmail_reply:
-            print(f"      → FANMAIL REPLY detected!")
-            print(f"      → Fanmail already read: {fanmail_has_been_read}")
 
     # Check for questions that need information
     question_words = ['what', 'when', 'where', 'who', 'why', 'how', 'which', 'tell me', 'explain', 'show me']
