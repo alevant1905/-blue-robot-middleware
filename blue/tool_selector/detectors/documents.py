@@ -1,0 +1,99 @@
+"""Document operations intent detector."""
+
+from typing import Dict, List, Optional
+from .base import BaseDetector
+from ..models import ToolIntent
+from ..constants import ToolPriority
+
+
+class DocumentsDetector(BaseDetector):
+    """Detects document search and creation intents."""
+
+    def detect(self, message: str, msg_lower: str, context: Dict) -> List[ToolIntent]:
+        intents = []
+
+        search_intent = self._detect_search_intent(msg_lower, context)
+        if search_intent:
+            intents.append(search_intent)
+
+        create_intent = self._detect_create_intent(msg_lower)
+        if create_intent:
+            intents.append(create_intent)
+
+        return intents
+
+    def _detect_search_intent(self, msg_lower: str, context: Dict) -> Optional[ToolIntent]:
+        strong_signals = [
+            'search my documents', 'search documents for', 'find in my documents',
+            'what do my documents say', 'according to my documents', 'search my files'
+        ]
+        doc_nouns = ['document', 'documents', 'file', 'files', 'pdf', 'contract']
+
+        confidence = 0.0
+        reasons = []
+
+        if any(s in msg_lower for s in strong_signals):
+            confidence = 0.95
+            reasons.append("explicit document search")
+        elif any(v in msg_lower for v in ['search', 'find', 'look for']):
+            if any(n in msg_lower for n in doc_nouns):
+                if 'my' in msg_lower or 'our' in msg_lower:
+                    confidence = 0.85
+                    reasons.append("search + possessive + document")
+                else:
+                    confidence = 0.70
+                    reasons.append("search + document")
+
+        # Questions about documents
+        if ('what' in msg_lower or 'how' in msg_lower) and any(n in msg_lower for n in doc_nouns):
+            confidence = max(confidence, 0.75)
+            reasons.append("question about document")
+
+        # Reduce for web search
+        if any(w in msg_lower for w in ['google', 'search online', 'search the web']):
+            confidence = max(0, confidence - 0.4)
+
+        if confidence <= 0:
+            return None
+
+        return ToolIntent(
+            tool_name='search_documents',
+            confidence=confidence,
+            priority=ToolPriority.MEDIUM,
+            reason=' | '.join(reasons),
+            extracted_params={'query': msg_lower[:100]}
+        )
+
+    def _detect_create_intent(self, msg_lower: str) -> Optional[ToolIntent]:
+        strong_signals = [
+            'create a document', 'create a file', 'make a document',
+            'write a document', 'save as a file', 'create a list', 'make me a list'
+        ]
+        create_nouns = ['document', 'file', 'list', 'note', 'notes', 'recipe']
+
+        confidence = 0.0
+        reasons = []
+
+        if any(s in msg_lower for s in strong_signals):
+            confidence = 0.90
+            reasons.append("explicit creation keywords")
+        elif any(v in msg_lower for v in ['create', 'make', 'write', 'save']):
+            if any(n in msg_lower for n in create_nouns):
+                confidence = 0.80
+                reasons.append("create verb + document noun")
+
+        if confidence <= 0:
+            return None
+
+        params = {}
+        # Extract title/content if present (simplified)
+        if '"' in msg_lower or "'" in msg_lower:
+            params['has_content'] = True
+
+        return ToolIntent(
+            tool_name='create_document',
+            confidence=confidence,
+            priority=ToolPriority.MEDIUM,
+            reason=' | '.join(reasons),
+            extracted_params=params
+        )
