@@ -310,6 +310,38 @@ def detect_follow_up_correction(message: str, context: Dict) -> Optional[Dict[st
     return correction
 
 
+def detect_camera_capture_intent(message: str) -> bool:
+    """Detect if user wants to capture a camera image (what do you see?)."""
+    msg_lower = message.lower()
+
+    # Primary camera capture triggers
+    camera_triggers = [
+        'what do you see',
+        'what can you see',
+        'what are you seeing',
+        "what's in front of you",
+        'what is in front of you',
+        'take a photo',
+        'take a picture',
+        'capture image',
+        'capture photo',
+        'show me what you see',
+        'look around',
+        'what are you looking at',
+        'describe what you see',
+        "what's happening right now",
+        'what is happening right now',
+        'show me your view',
+        'use the camera',
+        'use your camera',
+        'camera photo',
+        'camera picture'
+    ]
+
+    # Check for any trigger phrases
+    return any(trigger in msg_lower for trigger in camera_triggers)
+
+
 def smart_cache_key(query: str, tool: str = "") -> str:
     """Generate a smart cache key for query deduplication."""
     import hashlib
