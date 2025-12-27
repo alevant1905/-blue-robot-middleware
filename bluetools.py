@@ -1338,15 +1338,9 @@ from blue.tool_selector import (
 # END OF IMPROVED TOOL SELECTION SYSTEM
 # ================================================================================
 
-# Initialize the improved tool selector globally
-try:
-    IMPROVED_TOOL_SELECTOR = ImprovedToolSelector()
-    print("[OK] Improved tool selector initialized - confidence-based selection enabled!")
-    USE_IMPROVED_SELECTOR = True
-except Exception as e:
-    print(f"[WARN] Could not initialize improved selector: {e}")
-    print("[INFO] Falling back to legacy detection")
-    USE_IMPROVED_SELECTOR = False
+# Initialize the tool selector (always use improved modular system)
+TOOL_SELECTOR = ImprovedToolSelector()
+print("[OK] Tool selector initialized - using modular confidence-based selection")
 
 
 app = Flask(__name__)
@@ -6580,19 +6574,19 @@ def process_with_tools(messages: List[Dict]) -> Dict:
         if improved_force_tool:
             print(f"   [CORRECTION] Forcing tool: {improved_force_tool} with {improved_tool_args}")
 
-    if USE_IMPROVED_SELECTOR and not improved_force_tool:
-        # ===== USE IMPROVED CONFIDENCE-BASED SELECTOR =====
-        print(f"   [SELECTOR-V2] Using improved confidence-based tool selection")
+    # ===== TOOL SELECTION (Single Path - Always Use Modular Selector) =====
+    if not improved_force_tool:
+        print(f"   [SELECTOR] Running modular confidence-based tool selection")
 
         # Get recent history for context (last 5 messages)
         recent_history = conversation_messages[-5:] if len(conversation_messages) > 5 else conversation_messages
 
-        # Run the improved selector
-        selection_result = IMPROVED_TOOL_SELECTOR.select_tool(last_user_message, recent_history)
+        # Run the tool selector
+        selection_result = TOOL_SELECTOR.select_tool(last_user_message, recent_history)
 
         # Check if disambiguation is needed
         if selection_result.needs_disambiguation:
-            print(f"   [SELECTOR-V2] Low confidence - asking user for clarification")
+            print(f"   [SELECTOR] Low confidence - asking user for clarification")
             # Return disambiguation prompt to user
             conversation_messages.append({
                 'role': 'assistant',
@@ -6614,19 +6608,19 @@ def process_with_tools(messages: List[Dict]) -> Dict:
                 improved_tool_args = selected_tool.extracted_params
 
                 # Log selection details
-                print(f"   [SELECTOR-V2] Selected: {improved_force_tool}")
-                print(f"   [SELECTOR-V2] Confidence: {selected_tool.confidence:.2f}")
-                print(f"   [SELECTOR-V2] Priority: {selected_tool.priority}")
-                print(f"   [SELECTOR-V2] Reason: {selected_tool.reason}")
+                print(f"   [SELECTOR] Selected: {improved_force_tool}")
+                print(f"   [SELECTOR] Confidence: {selected_tool.confidence:.2f}")
+                print(f"   [SELECTOR] Priority: {selected_tool.priority}")
+                print(f"   [SELECTOR] Reason: {selected_tool.reason}")
             else:
-                print(f"   [SELECTOR-V2] Skipping selector - priority tool already set: {improved_force_tool}")
+                print(f"   [SELECTOR] Skipping selector - priority tool already set: {improved_force_tool}")
 
             if selection_result.alternative_tools:
                 alt_names = [t.tool_name for t in selection_result.alternative_tools[:2]]
-                print(f"   [SELECTOR-V2] Alternatives: {', '.join(alt_names)}")
+                print(f"   [SELECTOR] Alternatives: {', '.join(alt_names)}")
 
             if selection_result.compound_request:
-                print(f"   [SELECTOR-V2] WARNING: Compound request (multiple tools needed)")
+                print(f"   [SELECTOR] WARNING: Compound request (multiple tools needed)")
 
             # Initialize legacy detection variables to False (not used with improved selector)
             is_greeting = False
@@ -6650,9 +6644,9 @@ def process_with_tools(messages: List[Dict]) -> Dict:
             if not improved_force_tool:
                 improved_force_tool = None
                 improved_tool_args = None
-                print(f"   [SELECTOR-V2] No tool needed - conversational response")
+                print(f"   [SELECTOR] No tool needed - conversational response")
             else:
-                print(f"   [SELECTOR-V2] Keeping priority tool: {improved_force_tool}")
+                print(f"   [SELECTOR] Keeping priority tool: {improved_force_tool}")
 
             # Initialize detection variables
             is_greeting = True  # Treat as greeting if no tool
@@ -6671,75 +6665,6 @@ def process_with_tools(messages: List[Dict]) -> Dict:
             wants_document_retrieval = False
             wants_document_search = False
             wants_web_search = False
-    else:
-        # ===== USE LEGACY KEYWORD-BASED DETECTION =====
-        print(f"   [SELECTOR-LEGACY] Using legacy keyword-based detection")
-        # Don't overwrite improved_force_tool if it was set by priority detection (camera, etc.)
-        if not improved_force_tool:
-            improved_force_tool = None
-            improved_tool_args = None
-        else:
-            print(f"   [SELECTOR-LEGACY] Keeping priority tool: {improved_force_tool}")
-
-        # LEGACY DETECTION - Only run when NOT using improved selector
-        is_greeting = detect_no_tool_intent(last_user_message)
-        wants_music_play = detect_music_play_intent(last_user_message)
-        wants_music_control = detect_music_control_intent(last_user_message)
-        wants_visualizer = detect_visualizer_intent(last_user_message)
-        wants_javascript = detect_javascript_intent(last_user_message)
-        wants_weather = detect_weather_intent(last_user_message)
-        wants_lights = detect_light_intent(last_user_message)
-        wants_create_document = detect_create_document_intent(last_user_message)
-        wants_browse = detect_browse_intent(last_user_message)
-
-        # CRITICAL FIX (Oct 2024): Use unified Gmail operation detector to prevent READ/REPLY confusion
-        gmail_operation = detect_gmail_operation_intent(last_user_message)
-        wants_gmail_read = (gmail_operation == 'read_gmail')
-        wants_gmail_send = (gmail_operation == 'send_gmail')
-        wants_gmail_reply = (gmail_operation == 'reply_gmail')
-        wants_fanmail_reply = detect_fanmail_reply_intent(last_user_message)
-
-        # NEW: Distinguish between document operations
-        wants_document_retrieval = detect_document_retrieval_intent(last_user_message)
-        wants_document_search = detect_document_search_intent(last_user_message)
-
-        # NEW: Better web search detection
-        wants_web_search = detect_web_search_intent_improved(last_user_message)
-
-        # LOGGING - Show all detected intents with clear categorization
-        print(f"   [DETECT-LEGACY] Intent analysis:")
-        if is_greeting:
-            print(f"      → Greeting/casual chat (NO TOOL NEEDED)")
-        if wants_music_play:
-            print(f"      → Play music request")
-        if wants_music_control:
-            print(f"      → Music control request")
-        if wants_visualizer:
-            print(f"      → Light visualizer request")
-        if wants_javascript:
-            print(f"      → JavaScript/code execution request")
-        if wants_document_retrieval:
-            print(f"      → Document RETRIEVAL request (read specific document)")
-        if wants_document_search:
-            print(f"      → Document SEARCH request (search within documents)")
-        if wants_web_search:
-            print(f"      → WEB SEARCH request (search internet)")
-        if wants_weather:
-            print(f"      → Weather request")
-        if wants_lights:
-            print(f"      → Light control request")
-        if wants_create_document:
-            print(f"      → Document creation request")
-        if wants_browse:
-            print(f"      → Website browse request")
-        if wants_gmail_read:
-            print(f"      → Gmail READ request (check inbox)")
-        if wants_gmail_send:
-            print(f"      → Gmail SEND request (send email)")
-        if wants_gmail_reply:
-            print(f"      → Gmail REPLY request (reply to emails)")
-            if wants_fanmail_reply:
-                print(f"      → FANMAIL REPLY detected!")
 
     # Track if fanmail has been read in this conversation (always needed)
     fanmail_has_been_read = False

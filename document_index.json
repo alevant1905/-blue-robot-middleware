@@ -1,0 +1,26 @@
+{
+  "documents": [
+    {
+      "filename": "camera_NEW_20251227_071924_870166.jpg",
+      "filepath": "C:\\Users\\jfsebastian\\.claude-worktrees\\blue_enhanced2\\angry-nobel\\uploaded_documents\\camera_NEW_20251227_071924_870166.jpg",
+      "size": 179330,
+      "hash": "c2be598337cc32136140a7d5278be63f",
+      "uploaded_at": "2025-12-27 07:19:28",
+      "text_preview": "[\ud83c\udfa5 LIVE CAMERA - 1280x720 - Captured at 07:19:28 AM]",
+      "indexed_in_rag": false,
+      "camera_capture": true,
+      "capture_timestamp": "20251227_071924_870166",
+      "is_current_view": true
+    },
+    {
+      "filename": "family.txt",
+      "filepath": "uploads\\family.txt",
+      "size": 234,
+      "hash": "9fc193485044bac692370956b5f6754c",
+      "uploaded_at": "2025-12-27 07:20",
+      "text_preview": "Our family consists of Alex, Stella, Emmy, Athena, and Vilda. Alex is the father, Stella is the mother, Emmy is the daughter, Athena is the daughter, and Vilda is the daughter. We are a loving family who enjoys spending time together.",
+      "indexed_in_rag": false,
+      "created_by_blue": true
+    }
+  ]
+}

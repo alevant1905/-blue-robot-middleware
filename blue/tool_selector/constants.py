@@ -35,6 +35,7 @@ class ConfidenceThreshold:
 # Compound request patterns
 COMPOUND_CONJUNCTIONS = [
     ' and then ',
+    ' and ',
     ' then ',
     ' after that ',
     ' also ',

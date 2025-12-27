@@ -53,11 +53,12 @@ class GmailDetector(BaseDetector):
 
         read_signals = {
             'strong': [
-                'check my email', 'check email', 'check my inbox', 'read my email',
+                'check my email', 'check email', 'check my inbox',
+                'read my email', 'read my gmail', 'check my gmail',
                 'show my inbox', 'any new email', 'unread email', 'recent email'
             ],
             'medium': ['check', 'read', 'show', 'see'],
-            'weak': ['email', 'inbox', 'message']
+            'weak': ['email', 'gmail', 'inbox', 'message']
         }
 
         confidence = 0.0

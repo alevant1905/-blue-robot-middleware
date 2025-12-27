@@ -59,7 +59,7 @@ def _string_similarity(s1: str, s2: str) -> float:
     """
     Calculate string similarity using character-based comparison.
 
-    Uses Jaccard similarity on character bigrams.
+    Uses a combination of Levenshtein distance and bigram similarity.
 
     Args:
         s1: First string
@@ -73,7 +73,32 @@ def _string_similarity(s1: str, s2: str) -> float:
     if s1 == s2:
         return 1.0
 
-    # Simple Jaccard-like similarity on character bigrams
+    # Calculate Levenshtein distance
+    def levenshtein_distance(s1, s2):
+        if len(s1) < len(s2):
+            return levenshtein_distance(s2, s1)
+        if len(s2) == 0:
+            return len(s1)
+
+        previous_row = range(len(s2) + 1)
+        for i, c1 in enumerate(s1):
+            current_row = [i + 1]
+            for j, c2 in enumerate(s2):
+                # Cost of insertions, deletions, or substitutions
+                insertions = previous_row[j + 1] + 1
+                deletions = current_row[j] + 1
+                substitutions = previous_row[j] + (c1 != c2)
+                current_row.append(min(insertions, deletions, substitutions))
+            previous_row = current_row
+
+        return previous_row[-1]
+
+    # Calculate similarity from Levenshtein distance
+    max_len = max(len(s1), len(s2))
+    distance = levenshtein_distance(s1, s2)
+    levenshtein_sim = 1.0 - (distance / max_len)
+
+    # Also calculate bigram similarity for context
     def get_bigrams(s):
         return set(s[i:i+2] for i in range(len(s) - 1)) if len(s) > 1 else {s}
 
@@ -82,8 +107,10 @@ def _string_similarity(s1: str, s2: str) -> float:
 
     intersection = len(b1 & b2)
     union = len(b1 | b2)
+    bigram_sim = intersection / union if union > 0 else 0.0
 
-    return intersection / union if union > 0 else 0.0
+    # Return weighted average (favor Levenshtein for typos)
+    return 0.7 * levenshtein_sim + 0.3 * bigram_sim
 
 
 def normalize_artist_name(name: str) -> str:

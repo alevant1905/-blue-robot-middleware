@@ -109,6 +109,22 @@ class MusicDetector(BaseDetector):
 
     def _fuzzy_match_artist(self, msg_lower: str) -> Optional[str]:
         """Fuzzy match artist names to handle typos."""
+        from ..constants import COMPOUND_CONJUNCTIONS
+
+        # Skip fuzzy matching if this looks like a compound request
+        # to avoid false positives like "turn on lights and play" -> "ike turner"
+        if any(conj in msg_lower for conj in COMPOUND_CONJUNCTIONS):
+            # Only fuzzy match the part after the conjunction if "play" appears there
+            for conj in COMPOUND_CONJUNCTIONS:
+                if conj in msg_lower:
+                    parts = msg_lower.split(conj)
+                    # Check if "play" is in the second part
+                    if len(parts) > 1 and 'play' in parts[-1]:
+                        msg_lower = parts[-1]  # Only search in the music part
+                        break
+                    else:
+                        return None  # Don't fuzzy match compound requests
+
         # Remove play signals
         msg_without_signals = msg_lower
         for signal in PLAY_SIGNALS:
@@ -123,7 +139,8 @@ class MusicDetector(BaseDetector):
                 if i + length <= len(words):
                     phrase = ' '.join(words[i:i+length])
                     if len(phrase) >= 4:  # At least 4 characters
-                        match = fuzzy_match(phrase, ARTISTS, threshold=0.85)
+                        # Lower threshold to 0.60 for better fuzzy matching
+                        match = fuzzy_match(phrase, ARTISTS, threshold=0.60)
                         if match:
                             return match
         return None
@@ -166,7 +183,7 @@ class MusicDetector(BaseDetector):
         # "play" with music context from history
         elif has_play and context.get('has_music_in_history'):
             recency = context.get('music_recency', 0)
-            if recency >= 3:
+            if recency <= 3:  # Lower number = more recent
                 confidence = 0.50
                 reasons.append("play verb with RECENT music context")
             else:
@@ -258,9 +275,9 @@ class MusicDetector(BaseDetector):
             return 'resume'
         elif 'stop' in msg_lower:
             return 'pause'
-        elif 'volume up' in msg_lower or 'louder' in msg_lower or 'turn it up' in msg_lower:
+        elif 'volume up' in msg_lower or 'louder' in msg_lower or 'turn up' in msg_lower or 'turn it up' in msg_lower:
             return 'volume_up'
-        elif 'volume down' in msg_lower or 'quieter' in msg_lower or 'softer' in msg_lower or 'turn it down' in msg_lower:
+        elif 'volume down' in msg_lower or 'quieter' in msg_lower or 'softer' in msg_lower or 'turn down' in msg_lower or 'turn it down' in msg_lower:
             return 'volume_down'
         elif 'mute' in msg_lower:
             return 'mute'

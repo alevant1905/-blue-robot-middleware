@@ -175,7 +175,9 @@ ARTISTS = [
 CONTROL_SIGNALS = [
     'pause', 'stop', 'resume', 'skip', 'next', 'previous', 'back',
     'volume up', 'volume down', 'mute', 'louder', 'quieter', 'softer',
-    'turn it up', 'turn it down', 'next song', 'previous song',
+    'turn it up', 'turn it down', 'turn up', 'turn down',
+    'turn up the volume', 'turn down the volume',
+    'next song', 'previous song',
     'skip this', 'play next', 'go back'
 ]
 
