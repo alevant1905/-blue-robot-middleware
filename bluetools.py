@@ -5727,6 +5727,14 @@ def _execute_tool_internal(tool_name: str, tool_args: Dict[str, Any]) -> str:
 # ================================================================================
 
 
+# Validation helper functions
+def detect_hallucinated_search(response: str) -> bool:
+    """Detect if LLM is hallucinating a web search that didn't happen."""
+    import re
+    patterns = [r'i searched', r'according to (?:my|the) search', r'i found (?:that|the following)']
+    return any(re.search(pattern, response.lower()) for pattern in patterns)
+
+
 # Email helper functions (still used by send_gmail tool execution)
 def extract_email_address(message: str) -> str | None:
     """Extract email address from message."""
