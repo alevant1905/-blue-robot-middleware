@@ -21,6 +21,30 @@
       "text_preview": "Our family consists of Alex, Stella, Emmy, Athena, and Vilda. Alex is the father, Stella is the mother, Emmy is the daughter, Athena is the daughter, and Vilda is the daughter. We are a loving family who enjoys spending time together.",
       "indexed_in_rag": false,
       "created_by_blue": true
+    },
+    {
+      "filename": "camera_NEW_20251227_134314_694285.jpg",
+      "filepath": "C:\\Users\\jfsebastian\\Projects\\BlueMCP\\files\\blue_enhanced2\\uploaded_documents\\camera_NEW_20251227_134314_694285.jpg",
+      "size": 204088,
+      "hash": "54e2351c75b389fccf508d04de225777",
+      "uploaded_at": "2025-12-27 13:43:18",
+      "text_preview": "[\ud83c\udfa5 LIVE CAMERA - 1280x720 - Captured at 01:43:18 PM]",
+      "indexed_in_rag": false,
+      "camera_capture": true,
+      "capture_timestamp": "20251227_134314_694285",
+      "is_current_view": true
+    },
+    {
+      "filename": "camera_NEW_20251227_134348_925973.jpg",
+      "filepath": "C:\\Users\\jfsebastian\\Projects\\BlueMCP\\files\\blue_enhanced2\\uploaded_documents\\camera_NEW_20251227_134348_925973.jpg",
+      "size": 199230,
+      "hash": "b5b5543cf1b9437fecf181e2e5f0f7fe",
+      "uploaded_at": "2025-12-27 13:43:52",
+      "text_preview": "[\ud83c\udfa5 LIVE CAMERA - 1280x720 - Captured at 01:43:52 PM]",
+      "indexed_in_rag": false,
+      "camera_capture": true,
+      "capture_timestamp": "20251227_134348_925973",
+      "is_current_view": true
     }
   ]
 }
