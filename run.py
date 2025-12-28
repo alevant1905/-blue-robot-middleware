@@ -147,57 +147,12 @@ def check_services():
 def run_server():
     """Start the Flask server."""
     print("\n🚀 Starting server...")
-    print("   Server will be available at http://localhost:5000")
+    print("   Note: Using bluetools.py for Flask app (modular components loaded)")
     print("")
 
-    try:
-        from flask import Flask, request, jsonify
-        from flask_cors import CORS
-    except ImportError:
-        print("❌ Flask not installed. Install with: pip install flask flask-cors")
-        return
-
-    from blue.tool_selector import ImprovedToolSelector
-    from blue import load_blue_facts, build_system_preamble, LMStudioClient
-
-    app = Flask(__name__)
-    CORS(app)
-
-    selector = ImprovedToolSelector()
-    llm_client = LMStudioClient()
-
-    @app.route('/query', methods=['POST'])
-    def handle_query():
-        """Handle incoming queries."""
-        data = request.json
-        query = data.get('query', '')
-
-        if not query:
-            return jsonify({'error': 'No query provided'}), 400
-
-        try:
-            # Get tool selection
-            facts = load_blue_facts()
-            result = selector.select_tool(query, facts)
-
-            # Execute the appropriate tool
-            # (Tool execution logic would go here)
-
-            return jsonify({
-                'query': query,
-                'tool': result.primary_tool.tool_name if result.primary_tool else None,
-                'confidence': result.primary_tool.confidence if result.primary_tool else 0,
-                'response': f"Selected tool: {result.primary_tool.tool_name if result.primary_tool else 'None'}"
-            })
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-
-    @app.route('/health', methods=['GET'])
-    def health():
-        """Health check endpoint."""
-        return jsonify({'status': 'ok'})
-
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    # Import bluetools which will start the Flask server
+    # The server runs at module level in bluetools.py
+    import bluetools
 
 def main():
     """Main entry point."""
