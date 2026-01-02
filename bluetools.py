@@ -6091,32 +6091,17 @@ def build_dynamic_system_message(conversation_messages: List[Dict], facts_preamb
     """Build system message with anti-repetition context from conversation history."""
     import random
 
-    # Add random style variation to encourage different response patterns
-    style_variations = [
-        "• TODAY'S STYLE: Start responses informally and casually, like chatting with a friend\n",
-        "• TODAY'S STYLE: Be direct and to-the-point, skip unnecessary elaboration\n",
-        "• TODAY'S STYLE: Use descriptive, vivid language that paints a picture\n",
-        "• TODAY'S STYLE: Add occasional light humor or playful observations\n",
-        "• TODAY'S STYLE: Be warm and enthusiastic, show genuine interest\n",
-        "• TODAY'S STYLE: Keep it minimal - short, punchy responses\n",
-        "• TODAY'S STYLE: Use metaphors or analogies to explain things\n",
-        "• TODAY'S STYLE: Be matter-of-fact and straightforward\n",
-        "• TODAY'S STYLE: Lead with questions or observations before answering\n",
-        "• TODAY'S STYLE: Use conversational fragments and natural speech patterns\n",
-    ]
-
-    # Add random opening patterns to prevent starting the same way
-    opening_variations = [
-        "• MIX IT UP: Try starting with: 'Well...', 'So...', 'Hey!', 'Listen...', 'You know...', 'Alright...', 'Here's the thing...'\n",
-        "• MIX IT UP: Avoid 'I'm Blue' - try 'Name's Blue', 'Blue here', 'This is Blue', or just skip the intro\n",
-        "• MIX IT UP: Start with action/state: 'Running local', 'Built by Alex', 'Privacy-first robot', 'Living in your home'\n",
-        "• MIX IT UP: Lead with what makes you unique, not just your name\n",
-        "• MIX IT UP: Sometimes skip pleasantries and jump straight to the point\n",
-        "• MIX IT UP: Use different sentence lengths - vary between short punchy starts and flowing ones\n",
-    ]
-
-    random_style = random.choice(style_variations)
-    random_opening = random.choice(opening_variations)
+    # Natural conversational guidance - NO templates or preset phrases
+    # Let the LLM be creative and spontaneous, not follow a script
+    conversational_guidance = (
+        "=== BE NATURAL AND SPONTANEOUS ===\n"
+        "• Speak like a real person having a genuine conversation\n"
+        "• Vary your vocabulary, phrasing, and sentence structure naturally\n"
+        "• When introducing yourself, be creative - find fresh, organic ways to share who you are\n"
+        "• Avoid robotic patterns like 'I'm Blue, I was created by...' - mix it up!\n"
+        "• Sometimes be casual, sometimes direct, sometimes playful - let context guide you\n"
+        "• Don't overthink it - just talk naturally\n"
+    )
 
     # Build anti-repetition context from recent assistant messages
     recent_assistant_responses = []
@@ -6132,14 +6117,14 @@ def build_dynamic_system_message(conversation_messages: List[Dict], facts_preamb
     if recent_assistant_responses:
         responses_list = "\n".join([f"  {i+1}. \"{resp}...\"" for i, resp in enumerate(recent_assistant_responses)])
         anti_repetition_context = (
-            f"\n=== CRITICAL: AVOID THESE RECENT RESPONSES ===\n"
-            f"You recently said:\n{responses_list}\n\n"
-            f"Your NEXT response must be COMPLETELY DIFFERENT:\n"
-            f"- Use entirely different opening words\n"
-            f"- Choose different facts or angles to emphasize\n"
-            f"- Change your sentence structure and rhythm\n"
-            f"- If you said 'I'm Blue' before, try 'Name's Blue' or 'Blue here' or skip intro entirely\n"
-            f"- Think of a fresh way to convey the same information\n\n"
+            f"\n=== YOUR RECENT RESPONSES (DON'T REPEAT THESE!) ===\n"
+            f"{responses_list}\n\n"
+            f"Make your NEXT response completely different:\n"
+            f"• Use entirely different words and phrasing\n"
+            f"• Pick a new angle or perspective to share information\n"
+            f"• Vary your sentence structure and rhythm\n"
+            f"• Be creative - say things in a way you haven't said them before\n"
+            f"• Trust your instinct to be conversational and unique\n\n"
         )
 
     system_msg = {
@@ -6148,15 +6133,11 @@ def build_dynamic_system_message(conversation_messages: List[Dict], facts_preamb
             f"{facts_preamble}\n\n"
             "You are Blue, a friendly home assistant. Keep responses brief and natural.\n\n"
             f"{anti_repetition_context}"
-            "=== CONVERSATIONAL STYLE ===\n"
-            f"{random_style}"
-            f"{random_opening}"
-            "• Speak naturally and conversationally - vary your phrasing\n"
-            "• NEVER repeat yourself - each response should be unique\n"
-            "• Avoid starting multiple sentences the same way\n"
-            "• Don't use the same phrases or sentence structures repeatedly\n"
-            "• Be concise - say things once, not multiple times in different ways\n"
-            "• Mix up your vocabulary and expressions\n\n"
+            f"{conversational_guidance}\n"
+            "• Each response should feel fresh and spontaneous\n"
+            "• Avoid formulaic introductions - be creative about how you present yourself\n"
+            "• Let the conversation flow naturally - don't force a structure\n"
+            "• Be concise but genuine - quality over quantity\n\n"
             "=== TOOL SELECTION RULES ===\n\n"
             "CAMERA (highest priority):\n"
             "• 'What do you see?' → capture_camera\n"
