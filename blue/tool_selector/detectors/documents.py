@@ -27,6 +27,17 @@ class DocumentsDetector(BaseDetector):
             'search my documents', 'search documents for', 'find in my documents',
             'what do my documents say', 'according to my documents', 'search my files'
         ]
+
+        # List/count queries - user wants to see what documents exist
+        list_signals = [
+            'what documents are', 'what documents do', 'what files are',
+            'what files do', 'list documents', 'list files', 'list my documents',
+            'list my files', 'show me my documents', 'show me my files',
+            'show documents', 'show files', 'show my documents', 'show my files',
+            'how many documents', 'how many files', 'count documents', 'count files',
+            'documents in', 'files in', 'which documents', 'which files'
+        ]
+
         doc_nouns = ['document', 'documents', 'file', 'files', 'pdf', 'contract']
 
         confidence = 0.0
@@ -35,6 +46,10 @@ class DocumentsDetector(BaseDetector):
         if any(s in msg_lower for s in strong_signals):
             confidence = 0.95
             reasons.append("explicit document search")
+        elif any(s in msg_lower for s in list_signals):
+            # User wants to list/count documents
+            confidence = 0.90
+            reasons.append("document list/count query")
         elif any(v in msg_lower for v in ['search', 'find', 'look for']):
             if any(n in msg_lower for n in doc_nouns):
                 if 'my' in msg_lower or 'our' in msg_lower:
@@ -44,10 +59,12 @@ class DocumentsDetector(BaseDetector):
                     confidence = 0.70
                     reasons.append("search + document")
 
-        # Questions about documents
+        # Questions about documents (what/how questions)
         if ('what' in msg_lower or 'how' in msg_lower) and any(n in msg_lower for n in doc_nouns):
-            confidence = max(confidence, 0.75)
-            reasons.append("question about document")
+            # If already detected via list_signals, don't double-apply
+            if confidence < 0.80:
+                confidence = max(confidence, 0.75)
+                reasons.append("question about document")
 
         # Reduce for web search
         if any(w in msg_lower for w in ['google', 'search online', 'search the web']):

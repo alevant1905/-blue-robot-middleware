@@ -14,7 +14,11 @@
       "Bash(git merge:*)",
       "Bash(git stash push:*)",
       "Bash(git pull:*)",
-      "Bash(git worktree:*)"
+      "Bash(git worktree:*)",
+      "Bash(dir:*)",
+      "Bash(wc:*)",
+      "Bash(ls:*)",
+      "Bash(du:*)"
     ],
     "deny": [],
     "ask": []

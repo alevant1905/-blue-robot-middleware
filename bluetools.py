@@ -613,6 +613,7 @@ class ConversationState:
         self.last_query: str = ""
         self.query_count: int = 0
         self.session_start: float = __import__('time').time()
+        self.recent_phrases: List[str] = []  # Short text snippets used recently
     
     def record_tool_use(self, tool_name: str, success: bool, pattern: str = "", args: Dict = None):
         """Record tool usage for learning."""
@@ -732,11 +733,32 @@ def validate_response_quality(response: str, query: str) -> Dict[str, Any]:
             issues.append("Possible hallucination - claims search without tool use")
             score -= 25
     
-    # Check for repetition
+    # Check for repetition - Enhanced detection
     sentences = response.split('.')
     unique_sentences = set(s.strip().lower() for s in sentences if s.strip())
-    if len(sentences) > 3 and len(unique_sentences) < len(sentences) * 0.7:
+    if len(sentences) > 3 and len(unique_sentences) < len(sentences) * 0.85:
         issues.append("Response contains repetitive content")
+        score -= 20
+
+    # Check for repeated phrases (3+ words)
+    import re
+    words = response.lower().split()
+    phrases_seen = set()
+    repeated_phrases = []
+    for i in range(len(words) - 2):
+        phrase = ' '.join(words[i:i+3])
+        if phrase in phrases_seen:
+            repeated_phrases.append(phrase)
+        phrases_seen.add(phrase)
+
+    if repeated_phrases:
+        issues.append(f"Repeated phrases detected: {len(repeated_phrases)} instances")
+        score -= min(30, len(repeated_phrases) * 5)
+
+    # Check for repetitive sentence starters
+    sentence_starts = [s.strip().lower()[:15] for s in sentences if s.strip() and len(s.strip()) > 15]
+    if len(sentence_starts) != len(set(sentence_starts)):
+        issues.append("Multiple sentences start the same way")
         score -= 15
     
     # Check if response addresses the query
@@ -758,19 +780,73 @@ def clean_response_text(text: str) -> str:
     """Clean up response text for better presentation."""
     if not text:
         return ""
-    
+
     # Remove excessive whitespace
     import re
     text = re.sub(r'\n{3,}', '\n\n', text)
     text = re.sub(r' {2,}', ' ', text)
-    
+
     # Remove common artifacts
     artifacts = ['```json', '```', '{"', '"}']
     for artifact in artifacts:
         if text.startswith(artifact) or text.endswith(artifact):
             text = text.strip(artifact)
-    
+
     return text.strip()
+
+
+def check_response_against_history(response: str, conversation_messages: List[Dict]) -> Dict:
+    """
+    Check if a response is too similar to recent assistant messages.
+    Returns dict with 'is_duplicate' (bool) and 'similarity_score' (float).
+    """
+    import re
+    from difflib import SequenceMatcher
+
+    # Get last 5 assistant messages
+    recent_responses = []
+    for msg in reversed(conversation_messages):
+        if msg.get('role') == 'assistant' and msg.get('content'):
+            recent_responses.append(msg['content'])
+            if len(recent_responses) >= 5:
+                break
+
+    if not recent_responses:
+        return {'is_duplicate': False, 'similarity_score': 0.0, 'issues': []}
+
+    # Normalize response for comparison
+    def normalize(text):
+        # Remove punctuation, lowercase, collapse whitespace
+        text = re.sub(r'[^\w\s]', '', text.lower())
+        text = re.sub(r'\s+', ' ', text)
+        return text.strip()
+
+    normalized_response = normalize(response)
+    max_similarity = 0.0
+    issues = []
+
+    for prev_response in recent_responses:
+        normalized_prev = normalize(prev_response)
+
+        # Calculate similarity using SequenceMatcher
+        similarity = SequenceMatcher(None, normalized_response, normalized_prev).ratio()
+        max_similarity = max(max_similarity, similarity)
+
+        # Check for exact phrase matches
+        if len(normalized_response) > 20 and normalized_response in normalized_prev:
+            issues.append("Exact duplicate of previous response")
+            return {'is_duplicate': True, 'similarity_score': 1.0, 'issues': issues}
+
+        if similarity > 0.85:
+            issues.append(f"Very similar to recent response (similarity: {similarity:.2f})")
+
+    is_duplicate = max_similarity > 0.85  # More permissive - only flag near-exact duplicates
+
+    return {
+        'is_duplicate': is_duplicate,
+        'similarity_score': max_similarity,
+        'issues': issues
+    }
 
 
 def extract_action_from_query(query: str) -> Dict[str, Any]:
@@ -1443,9 +1519,13 @@ class LMStudioClient:
         payload: Dict[str, Any] = {
             "model": self.model,
             "messages": messages,
+            "frequency_penalty": 0.4,  # Strong penalty to reduce repetition of tokens
+            "presence_penalty": 0.3    # Strong penalty to encourage topic diversity
         }
         if temperature is not None:
             payload["temperature"] = float(temperature)
+        else:
+            payload["temperature"] = 0.8  # Slightly higher default for more variation
         if max_tokens is not None:
             payload["max_tokens"] = int(max_tokens)
         if tools:
@@ -3534,6 +3614,18 @@ TOOLS = [
     }
 ]
 
+# Filter out tools that require unavailable modules
+if not ENHANCED_TOOLS_AVAILABLE:
+    # Remove file operation tools that won't work
+    TOOLS = [tool for tool in TOOLS if tool["function"]["name"] not in [
+        "list_files", "read_file", "write_file", "get_file_info",
+        "create_reminder", "get_upcoming_reminders", "cancel_reminder",
+        "check_timers", "get_system_info", "take_screenshot",
+        "launch_application", "set_volume", "story_prompt", "educational_activity",
+        "get_local_time", "get_sunrise_sunset"
+    ]]
+    print(f"[INFO] Filtered {len([t for t in TOOLS if t['function']['name'] in ['list_files', 'read_file']])} unavailable enhanced tools")
+
 
 # ===== DOCUMENT MANAGEMENT FUNCTIONS =====
 
@@ -3860,19 +3952,30 @@ def search_documents_local(query: str, max_results: int = 3) -> str:
     query_lower = query.lower()
     matches = []
 
-    # Special handling for "all documents" or "summarize all" queries
-    if "all" in query_lower and ("document" in query_lower or "summarize" in query_lower or "image" in query_lower):
-        print(f"   [LIST] Query asks for ALL documents, listing them...")
+    # Special handling for document listing queries
+    list_keywords = ["list documents", "what documents", "show documents", "all documents",
+                     "summarize all", "list all", "show all"]
+    is_list_query = any(kw in query_lower for kw in list_keywords)
+
+    # Also treat very generic queries as list requests (e.g., just "documents" or "files")
+    generic_queries = query_lower.strip() in ["documents", "document", "files", "file", "pdfs", "pdf"]
+
+    if is_list_query or generic_queries or ("all" in query_lower and ("document" in query_lower or "summarize" in query_lower or "image" in query_lower)):
+        print(f"   [LIST] Query asks for document list/count, listing them...")
+
+        # Filter out camera images from document listings (they're temporary)
+        real_documents = [doc for doc in documents if not doc['filename'].startswith('camera_')]
+
         doc_list = []
-        for i, doc in enumerate(documents[:10], 1):
+        for i, doc in enumerate(real_documents[:10], 1):
             preview = doc.get('text_preview', 'No preview available')[:200]
             doc_list.append(f"{i}. {doc['filename']}\n   Preview: {preview}...")
 
         summary = "\n\n".join(doc_list)
-        if len(documents) > 10:
-            summary += f"\n\n...and {len(documents) - 10} more documents."
+        if len(real_documents) > 10:
+            summary += f"\n\n...and {len(real_documents) - 10} more documents."
 
-        return f"I have {len(documents)} document(s) uploaded:\n\n{summary}"
+        return f"I have {len(real_documents)} document(s) uploaded:\n\n{summary}"
 
     # Search through documents
     for doc in documents:
@@ -3938,8 +4041,14 @@ def search_documents_local(query: str, max_results: int = 3) -> str:
                 try:
                     full_text = extract_text_from_file(filepath)
 
-                    # If the file is very long, try to find relevant sections
-                    if len(full_text) > 3000:
+                    # Check if user wants the complete/full document
+                    wants_full_content = any(phrase in query_lower for phrase in [
+                        "whole", "entire", "full", "complete", "all of", "read the",
+                        "tell me the story", "read it", "tell the story"
+                    ])
+
+                    # If the file is very long and user didn't ask for full content
+                    if len(full_text) > 3000 and not wants_full_content:
                         # Split into paragraphs/sections
                         sections = full_text.split('\n\n')
                         relevant_sections = []
@@ -3958,8 +4067,9 @@ def search_documents_local(query: str, max_results: int = 3) -> str:
                             # No specific sections found, return first part
                             content = full_text[:2000]
                     else:
-                        # File is short enough, return it all
-                        content = full_text
+                        # File is short enough OR user wants full content - return it all
+                        # Limit to 15000 chars to avoid overwhelming the model
+                        content = full_text[:15000] if len(full_text) > 15000 else full_text
 
                     text_results.append(f"[FILE] **{filename}** (relevance: {score})\n\n{content}\n")
 
@@ -4046,6 +4156,13 @@ def view_image(filename: str = None, query: str = None) -> str:
         print(f"   [LIST] Showing {len(found_images)} recent image(s)")
 
     if not found_images:
+        # Check if user asked for a PDF or other non-image file
+        if filename and filename.lower().endswith(('.pdf', '.doc', '.docx', '.txt', '.md')):
+            return json.dumps({
+                "success": False,
+                "message": f"{filename} is not an image file - it's a document. The search_documents tool has already provided its contents."
+            })
+
         available = ", ".join([doc['filename'] for doc in image_docs[:10]])
         return json.dumps({
             "success": False,
@@ -5500,15 +5617,27 @@ def _execute_tool_internal(tool_name: str, tool_args: Dict[str, Any]) -> str:
         print(f"   [OK] Volume set")
         return json.dumps(result)
 
-    elif tool_name == "list_files" and ENHANCED_TOOLS_AVAILABLE:
-        result = FileOperations.list_files(**tool_args)
-        print(f"   [OK] Files listed")
-        return json.dumps(result)
+    elif tool_name == "list_files":
+        if ENHANCED_TOOLS_AVAILABLE:
+            result = FileOperations.list_files(**tool_args)
+            print(f"   [OK] Files listed")
+            return json.dumps(result)
+        else:
+            return json.dumps({
+                "success": False,
+                "message": "File system operations are not available. Use search_documents to access uploaded documents."
+            })
 
-    elif tool_name == "read_file" and ENHANCED_TOOLS_AVAILABLE:
-        result = FileOperations.read_file(**tool_args)
-        print(f"   [OK] File read")
-        return json.dumps(result)
+    elif tool_name == "read_file":
+        if ENHANCED_TOOLS_AVAILABLE:
+            result = FileOperations.read_file(**tool_args)
+            print(f"   [OK] File read")
+            return json.dumps(result)
+        else:
+            return json.dumps({
+                "success": False,
+                "message": "File reading is not available. Use search_documents to read uploaded documents."
+            })
 
     elif tool_name == "write_file" and ENHANCED_TOOLS_AVAILABLE:
         result = FileOperations.write_file(**tool_args)
@@ -5898,9 +6027,11 @@ def call_lm_studio(messages: List[Dict], include_tools: bool = True, force_tool:
 
     payload = {
         "messages": messages,
-        "temperature": 0.7,
+        "temperature": 0.8,  # Slightly higher for more variation
         "max_tokens": -1,
-        "stream": False
+        "stream": False,
+        "frequency_penalty": 0.4,  # Strong penalty to reduce repetition of tokens
+        "presence_penalty": 0.3    # Strong penalty to encourage topic diversity
     }
 
     if include_tools:
@@ -5956,24 +6087,76 @@ def purge_old_camera_images(messages: List[Dict]) -> List[Dict]:
     return messages
 
 
-def process_with_tools(messages: List[Dict]) -> Dict:
-    """Process conversation with tool support."""
-    conversation_messages = messages.copy()
+def build_dynamic_system_message(conversation_messages: List[Dict], facts_preamble: str) -> Dict:
+    """Build system message with anti-repetition context from conversation history."""
+    import random
 
-    # BUILD SYSTEM MESSAGE WITH MEMORY FACTS
-    # Extract facts from .ocf conversations first
-    ocf_facts = extract_ocf_facts(conversation_messages)
-    facts_preamble = build_system_preamble()
-    if ocf_facts:
-        facts_preamble += ocf_facts
-        log.info("[MEMORY] Injected extracted .ocf facts into system message")
+    # Add random style variation to encourage different response patterns
+    style_variations = [
+        "• TODAY'S STYLE: Start responses informally and casually, like chatting with a friend\n",
+        "• TODAY'S STYLE: Be direct and to-the-point, skip unnecessary elaboration\n",
+        "• TODAY'S STYLE: Use descriptive, vivid language that paints a picture\n",
+        "• TODAY'S STYLE: Add occasional light humor or playful observations\n",
+        "• TODAY'S STYLE: Be warm and enthusiastic, show genuine interest\n",
+        "• TODAY'S STYLE: Keep it minimal - short, punchy responses\n",
+        "• TODAY'S STYLE: Use metaphors or analogies to explain things\n",
+        "• TODAY'S STYLE: Be matter-of-fact and straightforward\n",
+        "• TODAY'S STYLE: Lead with questions or observations before answering\n",
+        "• TODAY'S STYLE: Use conversational fragments and natural speech patterns\n",
+    ]
 
-    # IMPROVED SYSTEM PROMPT - Streamlined and clear
+    # Add random opening patterns to prevent starting the same way
+    opening_variations = [
+        "• MIX IT UP: Try starting with: 'Well...', 'So...', 'Hey!', 'Listen...', 'You know...', 'Alright...', 'Here's the thing...'\n",
+        "• MIX IT UP: Avoid 'I'm Blue' - try 'Name's Blue', 'Blue here', 'This is Blue', or just skip the intro\n",
+        "• MIX IT UP: Start with action/state: 'Running local', 'Built by Alex', 'Privacy-first robot', 'Living in your home'\n",
+        "• MIX IT UP: Lead with what makes you unique, not just your name\n",
+        "• MIX IT UP: Sometimes skip pleasantries and jump straight to the point\n",
+        "• MIX IT UP: Use different sentence lengths - vary between short punchy starts and flowing ones\n",
+    ]
+
+    random_style = random.choice(style_variations)
+    random_opening = random.choice(opening_variations)
+
+    # Build anti-repetition context from recent assistant messages
+    recent_assistant_responses = []
+    for msg in reversed(conversation_messages):
+        if msg.get('role') == 'assistant' and msg.get('content'):
+            response_text = msg['content']
+            if len(response_text) > 50:  # Only include substantial responses
+                recent_assistant_responses.append(response_text[:150])  # First 150 chars
+                if len(recent_assistant_responses) >= 3:
+                    break
+
+    anti_repetition_context = ""
+    if recent_assistant_responses:
+        responses_list = "\n".join([f"  {i+1}. \"{resp}...\"" for i, resp in enumerate(recent_assistant_responses)])
+        anti_repetition_context = (
+            f"\n=== CRITICAL: AVOID THESE RECENT RESPONSES ===\n"
+            f"You recently said:\n{responses_list}\n\n"
+            f"Your NEXT response must be COMPLETELY DIFFERENT:\n"
+            f"- Use entirely different opening words\n"
+            f"- Choose different facts or angles to emphasize\n"
+            f"- Change your sentence structure and rhythm\n"
+            f"- If you said 'I'm Blue' before, try 'Name's Blue' or 'Blue here' or skip intro entirely\n"
+            f"- Think of a fresh way to convey the same information\n\n"
+        )
+
     system_msg = {
         "role": "system",
         "content": (
             f"{facts_preamble}\n\n"
             "You are Blue, a friendly home assistant. Keep responses brief and natural.\n\n"
+            f"{anti_repetition_context}"
+            "=== CONVERSATIONAL STYLE ===\n"
+            f"{random_style}"
+            f"{random_opening}"
+            "• Speak naturally and conversationally - vary your phrasing\n"
+            "• NEVER repeat yourself - each response should be unique\n"
+            "• Avoid starting multiple sentences the same way\n"
+            "• Don't use the same phrases or sentence structures repeatedly\n"
+            "• Be concise - say things once, not multiple times in different ways\n"
+            "• Mix up your vocabulary and expressions\n\n"
             "=== TOOL SELECTION RULES ===\n\n"
             "CAMERA (highest priority):\n"
             "• 'What do you see?' → capture_camera\n"
@@ -6007,6 +6190,24 @@ def process_with_tools(messages: List[Dict]) -> Dict:
             "Moods: moonlight, sunset, ocean, forest, romance, party, focus, relax, energize, movie, fireplace"
         )
     }
+
+    return system_msg
+
+
+def process_with_tools(messages: List[Dict]) -> Dict:
+    """Process conversation with tool support."""
+    conversation_messages = messages.copy()
+
+    # BUILD SYSTEM MESSAGE WITH MEMORY FACTS
+    # Extract facts from .ocf conversations first
+    ocf_facts = extract_ocf_facts(conversation_messages)
+    facts_preamble = build_system_preamble()
+    if ocf_facts:
+        facts_preamble += ocf_facts
+        log.info("[MEMORY] Injected extracted .ocf facts into system message")
+
+    # Build initial system message
+    system_msg = build_dynamic_system_message(conversation_messages, facts_preamble)
 
     if not conversation_messages or conversation_messages[0].get("role") != "system":
         conversation_messages.insert(0, system_msg)
@@ -6195,7 +6396,12 @@ def process_with_tools(messages: List[Dict]) -> Dict:
                 print(f"   [SELECTOR] Keeping priority tool: {improved_force_tool}")
 
             # Initialize detection variables
-            is_greeting = True  # Treat as greeting if no tool
+            # Detect if it's a greeting/conversational message
+            greeting_patterns = ['hello', 'hi ', 'hey', 'good morning', 'good afternoon', 'good evening',
+                                'how are you', 'how\'s it going', 'what\'s up', 'sup', 'greetings',
+                                'nice to see you', 'good to see you']
+            is_greeting = any(pattern in last_user_message.lower() for pattern in greeting_patterns)
+
             wants_music_play = False
             wants_music_control = False
             wants_visualizer = False
@@ -6325,13 +6531,21 @@ def process_with_tools(messages: List[Dict]) -> Dict:
                 if any(phrase in last_user_message.lower() for phrase in doc_phrases):
                     force_tool = "search_documents"  # Force when asking about user content
                     print("   [FORCE] Question about user content - forcing search_documents")
-                # Check if it's asking about current events, recent info, or unknowns
-                elif any(word in last_user_message.lower() for word in ['latest', 'recent', 'current', 'today', 'who won', 'what happened']):
+                # Check if it's asking about current events/news (more specific patterns)
+                # Avoid triggering on casual greetings like "how are you today"
+                elif (
+                    ('latest' in last_user_message.lower() and ('news' in last_user_message.lower() or 'update' in last_user_message.lower())) or
+                    ('what happened' in last_user_message.lower() and not 'dream' in last_user_message.lower()) or
+                    ('who won' in last_user_message.lower()) or
+                    ('current events' in last_user_message.lower()) or
+                    ('breaking news' in last_user_message.lower()) or
+                    ('recent news' in last_user_message.lower())
+                ):
                     force_tool = "web_search"
                     print("   [FORCE] Current info question - forcing web_search")
-                # General knowledge questions don't need tools
+                # General knowledge questions and greetings don't need tools
                 else:
-                    print("   [ALLOW] General knowledge question - no tool forced")
+                    print("   [ALLOW] General knowledge/conversational - no tool forced")
             else:
                 print("   [ALLOW] No clear tool intent - letting model decide")
 
@@ -6777,6 +6991,15 @@ def process_with_tools(messages: List[Dict]) -> Dict:
                         })
                         print(f"   [RETRY] Added correction message to force model to use {last_tool_name} results")
                         continue  # Loop back to get a new response
+
+            # Check for repetition against conversation history (just log it, don't retry)
+            content = assistant_message.get("content", "")
+            if content:
+                dedup_check = check_response_against_history(content, conversation_messages)
+                if dedup_check['is_duplicate']:
+                    print(f"   [INFO] Response similarity: {dedup_check['similarity_score']:.2f} (high but accepting for speed)")
+                elif dedup_check['similarity_score'] > 0.5:
+                    print(f"   [INFO] Response similarity: {dedup_check['similarity_score']:.2f} (acceptable)")
 
             print("[OK] Response complete (no tool calls)")
             return response
@@ -8665,3 +8888,226 @@ def voice_email_handle_command(utterance: str, *, execute_tool_fn, dry_run: bool
 
 # End Voice Email Interface
 ###############################################################################
+
+def polish_response_for_conversation(response: str, conversation_messages: List[Dict]) -> str:
+    """Post-process LLM responses to sound more conversational and less repetitive.
+
+    - Cleans artifacts and extra whitespace
+    - Removes obviously duplicated sentences
+    - Softens robotic disclaimers ("As an AI...")
+    - Shortens responses that are near-duplicates of recent replies
+    - Optionally adds a light conversational opener when things sound stiff
+    """
+    if not response:
+        return ""
+
+    # Base cleaning first
+    cleaned = clean_response_text(response)
+
+    import re as _re
+    import random as _random
+
+    # Strip common robotic disclaimers
+    disclaimers = [
+        "as an ai language model",
+        "as a language model",
+        "as an ai",
+        "i am an ai assistant",
+        "i'm an ai assistant",
+    ]
+    lowered = cleaned.lower()
+    for d in disclaimers:
+        if d in lowered:
+            # Remove the sentence containing the disclaimer
+            parts = _re.split(r'(?<=[.!?])\s+', cleaned)
+            parts = [p for p in parts if d not in p.lower()]
+            cleaned = " ".join(parts).strip()
+            lowered = cleaned.lower()
+            break
+
+    # Remove exact duplicate sentences
+    sentences = _re.split(r'(?<=[.!?])\s+', cleaned)
+    seen = set()
+    unique_sentences = []
+    for s in sentences:
+        key = s.strip().lower()
+        if key and key not in seen:
+            seen.add(key)
+            unique_sentences.append(s)
+
+    shortened = " ".join(unique_sentences).strip()
+
+    # If this still looks very similar to recent messages, trim it further
+    try:
+        history_check = check_response_against_history(shortened, conversation_messages)
+        if history_check.get("is_duplicate"):
+            # Keep only the first couple of sentences to avoid droning on
+            parts = _re.split(r'(?<=[.!?])\s+', shortened)
+            shortened = " ".join(parts[:2]).strip()
+    except Exception:
+        # On any failure, just fall back to the shortened text
+        pass
+
+    # Add a light conversational opener if it starts very stiffly
+    boring_starts = (
+        "i can ", "i will ", "i am ", "i'm ", "as an ", "here is ", "here's ", "this is "
+    )
+    stripped = shortened.lstrip()
+    lower_prefix = stripped[:10].lower()
+    if any(lower_prefix.startswith(b) for b in boring_starts):
+        openers = ["Alright —", "Got it —", "Sure —", "Okay —"]
+        opener = _random.choice(openers)
+        if stripped:
+            stripped = stripped[0].lower() + stripped[1:]
+        shortened = f"{opener} {stripped}"
+
+    return shortened.strip()
+
+
+# === Conversational wrapper for call_llm (auto-added) ===
+_raw_call_llm = call_llm
+
+def call_llm(
+    messages: List[Dict[str, Any]],
+    include_tools: bool = True,
+    tool_choice: str = "auto",
+    force_tool: Optional[str] = None,
+    max_tokens: Optional[int] = None,
+    temperature: Optional[float] = None,
+    extra: Optional[Dict[str, Any]] = None,
+    **kwargs: Any
+) -> Dict[str, Any]:
+    """Wrapper around original call_llm that polishes responses for conversation."""
+    result = _raw_call_llm(
+        messages,
+        include_tools=include_tools,
+        tool_choice=tool_choice,
+        force_tool=force_tool,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        extra=extra,
+        **kwargs
+    )
+
+    try:
+        if isinstance(result, dict) and "choices" in result and messages:
+            choice = result["choices"][0]
+            msg = choice.get("message") or choice.get("delta") or {}
+            content = msg.get("content")
+            if content:
+                polished = polish_response_for_conversation(content, messages)
+                if "message" in choice:
+                    choice["message"]["content"] = polished
+                elif "delta" in choice:
+                    choice["delta"]["content"] = polished
+    except Exception:
+        # If polishing fails for any reason, just fall back to the original result
+        pass
+
+    return result
+
+
+
+
+# === Enhanced conversational de-duplication ===
+def polish_response_for_conversation(response: str, conversation_messages: List[Dict]) -> str:
+    """Post-process LLM responses to sound more conversational and less repetitive.
+
+    - Cleans artifacts and extra whitespace
+    - Removes obviously duplicated sentences
+    - Softens robotic disclaimers ("As an AI...")
+    - Avoids reusing recent filler phrases across turns
+    - Shortens responses that are near-duplicates of recent replies
+    - Optionally adds a light conversational opener when things sound stiff
+    """
+    if not response:
+        return ""
+
+    cleaned = clean_response_text(response)
+
+    import re as _re
+    import random as _random
+
+    disclaimers = [
+        "as an ai language model",
+        "as a language model",
+        "as an ai",
+        "i am an ai assistant",
+        "i'm an ai assistant",
+    ]
+    lowered = cleaned.lower()
+    for d in disclaimers:
+        if d in lowered:
+            parts = _re.split(r'(?<=[.!?])\s+', cleaned)
+            parts = [p for p in parts if d not in p.lower()]
+            cleaned = " ".join(parts).strip()
+            lowered = cleaned.lower()
+            break
+
+    # Remove exact duplicate sentences within this response
+    sentences = _re.split(r'(?<=[.!?])\s+', cleaned)
+    seen = set()
+    unique_sentences = []
+    for s in sentences:
+        key = s.strip().lower()
+        if key and key not in seen:
+            seen.add(key)
+            unique_sentences.append(s)
+    shortened = " ".join(unique_sentences).strip()
+
+    previous_phrases = []
+    conv_state = None
+    try:
+        conv_state = get_conversation_state()
+        if hasattr(conv_state, "recent_phrases"):
+            previous_phrases = [p.strip().lower() for p in conv_state.recent_phrases]
+    except Exception:
+        conv_state = None
+
+    if previous_phrases:
+        sentences2 = _re.split(r'(?<=[.!?])\s+', shortened)
+        sentences_no_repeat = []
+        for s in sentences2:
+            key = s.strip().lower()
+            if not key:
+                continue
+            if key in previous_phrases:
+                continue
+            sentences_no_repeat.append(s)
+        if sentences_no_repeat:
+            shortened = " ".join(sentences_no_repeat).strip()
+
+    try:
+        history_check = check_response_against_history(shortened, conversation_messages)
+        if history_check.get("is_duplicate"):
+            parts = _re.split(r'(?<=[.!?])\s+', shortened)
+            shortened = " ".join(parts[:2]).strip()
+    except Exception:
+        pass
+
+    boring_starts = (
+        "i can ", "i will ", "i am ", "i'm ", "as an ", "here is ", "here's ", "this is "
+    )
+    stripped = shortened.lstrip()
+    lower_prefix = stripped[:10].lower()
+    if any(lower_prefix.startswith(b) for b in boring_starts):
+        openers = ["Alright —", "Got it —", "Sure —", "Okay —"]
+        opener = _random.choice(openers)
+        if stripped:
+            stripped = stripped[0].lower() + stripped[1:]
+        shortened = f"{opener} {stripped}"
+
+    final_text = shortened.strip()
+
+    try:
+        if conv_state is not None and hasattr(conv_state, "recent_phrases"):
+            new_phrases = [
+                s.strip() for s in _re.split(r'(?<=[.!?])\s+', final_text) if s.strip()
+            ]
+            conv_state.recent_phrases.extend(new_phrases)
+            if len(conv_state.recent_phrases) > 30:
+                conv_state.recent_phrases = conv_state.recent_phrases[-30:]
+    except Exception:
+        pass
+
+    return final_text
