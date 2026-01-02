@@ -18,7 +18,16 @@
       "Bash(dir:*)",
       "Bash(wc:*)",
       "Bash(ls:*)",
-      "Bash(du:*)"
+      "Bash(du:*)",
+      "Bash(for branch in angry-jackson angry-nobel beautiful-booth blue-no-memory cool-solomon distracted-feynman ecstatic-northcutt elegant-aryabhata frosty-mayer hungry-austin hungry-solomon musing-hypatia nifty-noether recursing-fermat romantic-yalow sad-wozniak silly-kapitsa xenodochial-murdock zealous-mayer zealous-shockley)",
+      "Bash(do echo '=== $branch ===')",
+      "Bash(done)",
+      "Bash(for branch in angry-jackson angry-nobel beautiful-booth blue-no-memory cool-solomon distracted-feynman ecstatic-northcutt elegant-aryabhata frosty-mayer)",
+      "Bash(for branch in hungry-austin hungry-solomon musing-hypatia nifty-noether recursing-fermat romantic-yalow sad-wozniak silly-kapitsa xenodochial-murdock zealous-mayer zealous-shockley)",
+      "Bash(git branch:*)",
+      "Bash(for branch in angry-jackson angry-nobel beautiful-booth elegant-aryabhata hungry-solomon nifty-noether silly-kapitsa sad-wozniak xenodochial-murdock zealous-mayer zealous-shockley)",
+      "Bash(do git worktree remove --force $branch)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []
