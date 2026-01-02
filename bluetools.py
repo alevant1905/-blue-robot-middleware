@@ -65,6 +65,7 @@ import re
 import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from functools import lru_cache
 import pickle
 import webbrowser
 import random
