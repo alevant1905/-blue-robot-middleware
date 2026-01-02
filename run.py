@@ -147,12 +147,21 @@ def check_services():
 def run_server():
     """Start the Flask server."""
     print("\n🚀 Starting server...")
-    print("   Note: Using bluetools.py for Flask app (modular components loaded)")
+    print("   Loading bluetools.py (this will start the Flask server)")
     print("")
 
-    # Import bluetools which will start the Flask server
-    # The server runs at module level in bluetools.py
+    # Import bluetools and run its main function
     import bluetools
+
+    # Run the server if bluetools has a main guard
+    if hasattr(bluetools, '__name__'):
+        print("   Server starting on http://127.0.0.1:5000")
+        print("   Press CTRL+C to quit")
+        print("")
+        # The Flask app.run() is inside bluetools' if __name__ == "__main__" block
+        # We need to run it manually since we're importing, not executing
+        if hasattr(bluetools, 'app'):
+            bluetools.app.run(host='127.0.0.1', port=5000, debug=False)
 
 def main():
     """Main entry point."""
