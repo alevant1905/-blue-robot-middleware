@@ -8743,7 +8743,7 @@ class AddressBook:
     def __init__(self, path: str):
         self.path = path
         self.contacts: list[_Contact] = []
-        if _os.path.exists(path): self._load()
+        if os.path.exists(path): self._load()
         else: self._save()
     def add_or_update(self, name: str, email: str, aliases: list[str] | None = None) -> _Contact:
         name_n = _normalize_text(name)
@@ -8850,13 +8850,13 @@ class VoiceEmailController:
         else: obj = out or {}
         obj.setdefault("success", True); obj.setdefault("spoken_confirmation", confirmation); return obj
 
-_VOICE_ADDRBOOK_PATH = _os.environ.get("BLUE_ADDRESS_BOOK", "/mnt/data/blue_address_book.json")
+_VOICE_ADDRBOOK_PATH = os.environ.get("BLUE_ADDRESS_BOOK", "/mnt/data/blue_address_book.json")
 __voice_singletons = {"ab": None, "nlu": None, "controller": None}
 
 def get_voice_email_controller(execute_tool_fn):
     ab = __voice_singletons.get("ab")
     if ab is None:
-        if not _os.path.exists(_VOICE_ADDRBOOK_PATH):
+        if not os.path.exists(_VOICE_ADDRBOOK_PATH):
             seed = {"contacts":[
                 {"name":"Sam Carter","email":"sam.carter@example.com","aliases":["Sam","Samuel Carter"]},
                 {"name":"Jordan Lee","email":"jordan.lee@example.com","aliases":["Jordy","J Lee"]},
