@@ -8246,6 +8246,9 @@ if __name__ == "__main__":
     print("   • No longer requires YouTube Music window to be active!")
     print("   • You can control music while using Ohbot app! ✅\n")
 
+    # Start the Flask server
+    app.run(host='127.0.0.1', port=PROXY_PORT, debug=False)
+
 
 # --- Image Upload Endpoints ---
 @app.route("/upload", methods=["GET", "POST"])
@@ -8470,7 +8473,8 @@ def facebook_callback():
         """
 
 
-app.run(host='127.0.0.1', port=PROXY_PORT, debug=False)
+# Don't auto-run when imported - let run.py handle startup
+# app.run(host='127.0.0.1', port=PROXY_PORT, debug=False)
 
 # ===== Tool Executor with timeouts, retries, and small cache =====
 class ToolExecutor:
