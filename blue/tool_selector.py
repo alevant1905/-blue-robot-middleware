@@ -1068,6 +1068,13 @@ class ImprovedToolSelector:
         has_artist = any(artist in msg_lower for artist in artists)
         has_genre = any(genre in msg_lower for genre in genres)
 
+        # IMPORTANT: Exclude false positives where "blue" refers to the robot, not the genre "blues"
+        # Check if "blues" genre was matched, but it's actually "blue" (robot name) in self-referential context
+        if has_genre and 'blue' in msg_lower:
+            # Check for self-referential context (talking about Blue the robot)
+            if any(phrase in msg_lower for phrase in ['about you', 'your', 'yourself', 'you are', 'remember', 'learn', 'never forget']):
+                has_genre = False  # Not a genre mention - it's about the robot
+
         # v7 ENHANCEMENT: Fuzzy match for artist names (handles typos)
         # BUT: Only do fuzzy matching if we have clear music context (play signal present)
         matched_artist = None
@@ -1153,6 +1160,14 @@ class ImprovedToolSelector:
             if any(w in msg_lower for w in ['who', 'what', 'when', 'where', 'how', 'tell me']):
                 play_confidence = 0.2
                 play_reason.append("artist mentioned but seems like info request")
+            # Check for memory/learning context (not music)
+            elif any(w in msg_lower for w in ['remember', 'learn', 'don\'t forget', 'never forget', 'memorize', 'keep in mind']):
+                play_confidence = 0.15  # Too low to trigger
+                play_reason.append("artist mentioned but memory context detected")
+            # Check for self-referential context (talking about Blue the robot, not music)
+            elif any(phrase in msg_lower for phrase in ['about yourself', 'about you', 'about blue', 'your name', 'you are', 'your identity']):
+                play_confidence = 0.15  # Too low to trigger
+                play_reason.append("artist mentioned but self-referential context")
             elif context.get('has_music_in_history'):
                 play_confidence = 0.7
                 play_reason.append("artist mentioned with music context")
@@ -1423,6 +1438,46 @@ class ImprovedToolSelector:
                 priority=self.PRIORITY_MEDIUM,
                 reason=' | '.join(create_reason),
                 extracted_params=self._extract_document_create_params(msg_lower)
+            ))
+
+        # LIST files/documents
+        list_signals = {
+            'strong': [
+                'list files', 'list documents', 'show files', 'show documents',
+                'list all files', 'show all documents', 'what files', 'what documents',
+                'list my files', 'list my documents', 'show my files', 'show my documents',
+                'files in', 'documents in'
+            ],
+            'medium': ['list', 'show me', 'what\'s in']
+        }
+
+        list_confidence = 0.0
+        list_reason = []
+
+        if any(signal in msg_lower for signal in list_signals['strong']):
+            list_confidence = 0.92
+            list_reason.append("explicit file/document listing keywords")
+        elif any(verb in msg_lower for verb in list_signals['medium']):
+            # Check if it's asking about files/documents in a folder
+            if any(noun in msg_lower for noun in doc_nouns + ['folder', 'directory']):
+                list_confidence = 0.85
+                list_reason.append("list verb + file/folder noun")
+
+        if list_confidence > 0:
+            # Try to extract directory from message
+            directory = None
+            # Look for "in the X folder" or "in X"
+            if 'document' in msg_lower and 'folder' in msg_lower:
+                directory = 'uploaded_documents'
+            elif 'upload' in msg_lower:
+                directory = 'uploaded_documents'
+
+            intents.append(ToolIntent(
+                tool_name='list_files',
+                confidence=list_confidence,
+                priority=self.PRIORITY_MEDIUM,
+                reason=' | '.join(list_reason),
+                extracted_params={'directory': directory if directory else 'uploaded_documents'}
             ))
 
         return intents

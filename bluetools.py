@@ -3410,7 +3410,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "view_image",
-            "description": "View and analyze image files from the uploaded documents. Use this when user asks about a specific image, wants to see an image, or references an uploaded photo/screenshot/diagram. This allows you (the vision model) to see the actual image content. You can view images by filename or search for them. Use this for: 'show me the image', 'what's in photo.jpg', 'look at the screenshot', 'analyze the diagram I uploaded', 'view the picture'.",
+            "description": "View and analyze a SPECIFIC image file when user EXPLICITLY asks to see/view/look at it. ONLY use this when user directly requests to view an image (e.g., 'show me photo.jpg', 'look at the screenshot', 'what's in this image'). DO NOT use this just because an image filename appears in a document list - only use when user specifically wants to view the image content itself.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -3431,7 +3431,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "capture_camera",
-            "description": "Look at what's in front of you right now by capturing a camera view. Use this when the user asks what you see, what's in front of you, or any question about your physical surroundings. After capturing, you'll see your current environment and can naturally discuss what's there - just like looking around a room and talking about it. Always capture a fresh view when asked about your surroundings.",
+            "description": "Capture a live camera view of your current surroundings. ONLY use this when user EXPLICITLY asks about what you see RIGHT NOW (e.g., 'what do you see?', 'look at me', 'what's in front of you?'). DO NOT use this for general conversation, document queries, or when user doesn't specifically ask about your current visual surroundings. This tool is for live visual perception, not for general questions.",
             "parameters": {
                 "type": "object",
                 "properties": {},
@@ -5906,7 +5906,7 @@ def extract_email_subject_and_body(message: str) -> tuple:
     return subject, body
 
 
-def call_lm_studio(messages: List[Dict], include_tools: bool = True, force_tool: str = None) -> Dict:
+def call_lm_studio(messages: List[Dict], include_tools: bool = True, force_tool: str = None, iteration: int = 1) -> Dict:
     global _vision_queue
 
     if force_tool:
@@ -5964,16 +5964,19 @@ def call_lm_studio(messages: List[Dict], include_tools: bool = True, force_tool:
 
             # Build comprehensive vision prompt
             vision_prompt_parts = [
-                "[You're now looking at your current surroundings through your camera. "
-                "Respond naturally about what you observe, as if you're in the space looking around.]",
+                "[CRITICAL: You are receiving a REAL camera image RIGHT NOW. You MUST describe what you ACTUALLY SEE in this specific image. "
+                "DO NOT describe from memory or imagination. DO NOT use generic descriptions. "
+                "Look at the ACTUAL image provided and describe EXACTLY what is visible in it.]",
                 "",
-                "Observe comprehensively:",
-                "• WHO is present and WHAT are they doing? (activities, body language)",
-                "• HOW are people interacting? (collaborating, conversing, working alone)",
-                "• EMOTIONAL context: What moods or emotions are visible?",
-                "• OBJECTS in use: What are people actively using or engaged with?",
-                "• NARRATIVE: What's the story of this moment?",
-                ""
+                "Describe what you ACTUALLY see in this image:",
+                "• WHO is in the image? Describe their appearance, clothing, position",
+                "• WHAT are they doing? Specific activities visible",
+                "• WHERE are they? Describe the room, furniture, background details",
+                "• WHAT objects are visible? Be specific about items you can see",
+                "• Colors, lighting, and atmosphere you observe",
+                "",
+                "IMPORTANT: Base your response ONLY on what you can actually see in the image provided below. "
+                "Do not guess or use prior knowledge."
             ]
 
             # Add recognition context
@@ -5989,9 +5992,7 @@ def call_lm_studio(messages: List[Dict], include_tools: bool = True, force_tool:
                 except Exception as e:
                     print(f"[CONTEXT-AWARE] Error: {e}")
 
-            vision_prompt_parts.append(
-                "\nRespond conversationally about your surroundings - not like describing a photograph."
-            )
+            # Removed conflicting instruction - we want accurate description of the actual image
 
             image_parts.append({
                 "type": "text",
@@ -6010,13 +6011,21 @@ def call_lm_studio(messages: List[Dict], include_tools: bool = True, force_tool:
             image_data = encode_image_to_base64(img_info.filepath)
             if image_data:
                 image_parts.append(image_data)
-                print(f"   [VISION] Added {img_info.filename}")
+                # Debug: Check if image data is valid
+                if isinstance(image_data, dict) and 'image_url' in image_data:
+                    data_preview = str(image_data['image_url'].get('url', ''))[:100]
+                    print(f"   [VISION] Added {img_info.filename} (size: {len(data_preview)} chars in preview)")
+                else:
+                    print(f"   [VISION] Added {img_info.filename} (non-standard format: {type(image_data)})")
+            else:
+                print(f"   [VISION-ERROR] Failed to encode image: {img_info.filename}")
 
         # Add natural prompt for camera
         if any(img.is_camera_capture for img in _vision_queue.pending_images):
             image_parts.append({
                 "type": "text",
-                "text": "\n[Now respond naturally about what's in your environment. Talk about it conversationally, not like you're describing a picture.]"
+                "text": "\n[The image above shows your CURRENT view RIGHT NOW. Describe what you ACTUALLY see in THIS specific image. "
+                "Be conversational but accurate - talk about what's really there, not what you remember or expect to see.]"
             })
 
         # CRITICAL: Inject as USER message (not assistant)
@@ -6036,7 +6045,22 @@ def call_lm_studio(messages: List[Dict], include_tools: bool = True, force_tool:
     }
 
     if include_tools:
-        payload["tools"] = TOOLS
+        # CRITICAL FIX: After iteration 1, filter out "memory/organization" tools that cause loops
+        tools_to_use = TOOLS
+        if iteration > 1:
+            # Block tools that the model overuses after getting initial results
+            blocked_tools = {
+                'create_note', 'create_document', 'remember_person', 'remember_place',
+                'set_timer', 'create_task', 'get_tasks', 'complete_task',
+                'who_do_i_know', 'view_image', 'capture_camera'
+            }
+            tools_to_use = [
+                tool for tool in TOOLS
+                if tool['function']['name'] not in blocked_tools
+            ]
+            print(f"   [FILTER] Iteration {iteration}: Blocked {len(TOOLS) - len(tools_to_use)} overused tools")
+
+        payload["tools"] = tools_to_use
         payload["tool_choice"] = "required" if force_tool else "auto"
 
     try:
@@ -6105,11 +6129,22 @@ def build_dynamic_system_message(conversation_messages: List[Dict], facts_preamb
     )
 
     # Build anti-repetition context from recent assistant messages
+    # EXCLUDE vision-related responses to prevent contamination when describing new photos
+    vision_description_phrases = ['i see', 'cozy living room', 'soft lighting', 'warm vibe',
+                                   'in his office', 'in her office', 'wearing', 'holding a mug',
+                                   'sitting at', 'glasses and', 'giving a thumbs', 'the monitor shows',
+                                   'behind him', 'behind her', 'the kitchen', 'the living room']
+
     recent_assistant_responses = []
     for msg in reversed(conversation_messages):
         if msg.get('role') == 'assistant' and msg.get('content'):
             response_text = msg['content']
-            if len(response_text) > 50:  # Only include substantial responses
+            response_lower = response_text.lower()
+
+            # Skip vision-related responses to prevent photo description contamination
+            is_vision_response = any(phrase in response_lower for phrase in vision_description_phrases)
+
+            if len(response_text) > 50 and not is_vision_response:  # Only include substantial non-vision responses
                 recent_assistant_responses.append(response_text[:150])  # First 150 chars
                 if len(recent_assistant_responses) >= 3:
                     break
@@ -6215,9 +6250,69 @@ def process_with_tools(messages: List[Dict]) -> Dict:
     # Purge old camera images from conversation to prevent confusion
     conversation_messages = purge_old_camera_images(conversation_messages)
 
+    # CRITICAL FIX: Remove old photo descriptions to prevent confusion with new photos
+    last_user_message = messages[-1].get("content", "") if messages else ""
+    vision_keywords = ['see', 'look', 'watch', 'view', 'show', 'picture', 'photo', 'image', 'camera', 'visual']
+    asks_about_vision = any(keyword in last_user_message.lower() for keyword in vision_keywords)
+
+    # ALWAYS remove old photo descriptions from history (both when asking about vision and when not)
+    # This prevents Blue from confusing old photo descriptions with new photos
+    vision_description_phrases = ['i see', 'in his office', 'in her office', 'wearing', 'holding a mug',
+                                 'sitting at', 'glasses and', 'giving a thumbs', 'the monitor shows',
+                                 'behind him', 'behind her', 'the kitchen', 'the living room',
+                                 'cozy living room', 'soft lighting', 'warm vibe']
+
+    # Track consecutive user/assistant pairs where user asked about vision and assistant described it
+    messages_to_remove = []
+    for i in range(len(conversation_messages) - 1):
+        current_msg = conversation_messages[i]
+        next_msg = conversation_messages[i + 1] if i + 1 < len(conversation_messages) else None
+
+        # Check if this is a user message asking about vision
+        if current_msg.get('role') == 'user':
+            user_content = str(current_msg.get('content', '')).lower()
+            asks_vision_in_msg = any(kw in user_content for kw in ['see', 'look', 'watch', 'show', 'picture', 'photo'])
+
+            # If next message is assistant and contains photo description phrases, mark both for removal
+            if asks_vision_in_msg and next_msg and next_msg.get('role') == 'assistant':
+                assistant_content = str(next_msg.get('content', '')).lower()
+                if any(phrase in assistant_content for phrase in vision_description_phrases):
+                    messages_to_remove.extend([i, i + 1])
+
+    description_count = len(set(messages_to_remove))  # unique indices
+
+    if not asks_about_vision:
+        # User is NOT asking about vision - remove ALL camera images too
+        camera_count_before = sum(1 for msg in conversation_messages
+                                  if isinstance(msg.get('content'), (str, list)) and
+                                  ('camera_NEW_' in str(msg.get('content', '')) or 'CAMERA' in str(msg.get('content', ''))))
+
+        if camera_count_before > 0 or description_count > 0:
+            # Filter out camera images AND photo description pairs
+            conversation_messages = [
+                msg for idx, msg in enumerate(conversation_messages)
+                if not (
+                    # Remove camera image messages
+                    (isinstance(msg.get('content'), (str, list)) and
+                     ('camera_NEW_' in str(msg.get('content', '')) or 'CAMERA' in str(msg.get('content', '')))) or
+                    # Remove photo description messages
+                    idx in messages_to_remove
+                )
+            ]
+            total_removed = camera_count_before + description_count
+            print(f"   [VISION-PURGE] Removed {total_removed} vision-related message(s) ({camera_count_before} images, {description_count} descriptions) - not relevant to current query")
+    else:
+        # User IS asking about vision - only remove old photo DESCRIPTIONS (not the current camera image)
+        # This prevents confusion between old descriptions and the new photo being taken
+        if description_count > 0:
+            conversation_messages = [
+                msg for idx, msg in enumerate(conversation_messages)
+                if idx not in messages_to_remove
+            ]
+            print(f"   [VISION-PURGE] Removed {description_count} old photo description(s) to focus on current vision query")
+
     max_iterations = _settings.MAX_ITERATIONS
     iteration = 0
-    last_user_message = messages[-1].get("content", "") if messages else ""
 
     # ================================================================================
     # v8 ENHANCEMENT: Check for compound requests and follow-up corrections
@@ -6531,7 +6626,15 @@ def process_with_tools(messages: List[Dict]) -> Dict:
             else:
                 print("   [ALLOW] No clear tool intent - letting model decide")
 
-        response = call_lm_studio(conversation_messages, include_tools=True, force_tool=force_tool)
+        # CRITICAL FIX: After iteration 2, add a system override to FORCE a text response
+        if iteration > 2:
+            print(f"   [LIMIT] Iteration {iteration} - forcing final response without tools")
+            conversation_messages.append({
+                "role": "user",
+                "content": "[SYSTEM OVERRIDE: You MUST respond with plain text now. NO more tool calls. Answer the user's question directly based on the information you already have. If you don't have enough information, just say so. Stop calling tools immediately.]"
+            })
+
+        response = call_lm_studio(conversation_messages, include_tools=True, force_tool=force_tool, iteration=iteration)
 
         if not response:
             return {"choices": [{"message": {"role": "assistant", "content": "I'm having trouble connecting."}}]}
@@ -7075,6 +7178,21 @@ def process_with_tools(messages: List[Dict]) -> Dict:
                 except Exception:
                     pass
 
+        # CRITICAL FIX: After executing all tools, add a STRONG reminder to respond and loop back
+        # This prevents the model from calling more unnecessary tools
+        if iteration == 1:
+            # After first tool execution, FORCE model to respond with the information
+            conversation_messages.append({
+                "role": "user",
+                "content": "[CRITICAL INSTRUCTION: STOP calling tools. The tool above has provided all the information you need. Your ONLY job now is to answer the user's original question in a natural, conversational way using the tool results above. DO NOT call create_note, create_document, remember_person, set_timer, or ANY other tool. Just respond naturally to the user.]"
+            })
+            print(f"   [REMIND] Added STRONG response reminder after iteration 1 tool execution")
+
+        # CRITICAL FIX: After executing all tools, loop back to get the model's response to the tool results
+        # Without this continue, the code falls through to the error return statement below
+        continue
+
+    # If we exit the loop without returning, something went wrong
     return {"choices": [{"message": {"role": "assistant", "content": "I couldn't complete your request."}}]}
 
 
